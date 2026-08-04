@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Relay</title>
+    <meta name="description" content="Sign in to Relay employee management system">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/relay_logo.png') }}">
+</head>
+<body class="login-body">
+
+    <div class="login-bg">
+        <div class="login-orb orb-1"></div>
+        <div class="login-orb orb-2"></div>
+        <div class="login-orb orb-3"></div>
+    </div>
+
+    <div class="login-wrapper">
+        <div class="login-card">
+            <!-- Brand -->
+            <div class="login-brand">
+                <img src="{{ url_for('static', filename='images/relay_logo.png') }}" alt="Relay Logo" class="login-brand-img" style="width: 44px; height: 44px; border-radius: 12px; box-shadow: 0 4px 14px rgba(56, 189, 248, 0.35);">
+                <h1 class="login-brand-name">Relay</h1>
+            </div>
+
+            <p class="login-subtitle">Sign in to your workspace</p>
+
+            <!-- Flash errors -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="login-alert login-alert-{{ category }}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Login Form -->
+            <form method="POST" action="{{ url_for('auth.login') }}" class="login-form" id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="employee_id">Employee ID</label>
+                    <div class="input-wrapper">
+                        <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <input type="text" id="employee_id" name="employee_id" class="form-input"
+                               placeholder="e.g. EMP001" required autocomplete="username"
+                               value="{{ request.form.get('employee_id', '') }}">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                        <label class="form-label" for="password" style="margin-bottom: 0;">Password</label>
+                        <a href="#" onclick="showForgotPasswordModal(event)" class="forgot-password-link" style="font-size: 11px; font-weight: 500; color: var(--accent); text-transform: none; letter-spacing: normal; transition: color 0.15s;">Forgot Password?</a>
+                    </div>
+                    <div class="input-wrapper">
+                        <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        <input type="password" id="password" name="password" class="form-input"
+                               placeholder="Enter your password" required autocomplete="current-password">
+                        <button type="button" class="password-toggle" onclick="togglePassword()" tabindex="-1">
+                            <svg id="eyeOpen" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            <svg id="eyeClosed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                <line x1="1" y1="1" x2="23" y2="23"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full" id="loginBtn">
+                    Sign In
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </button>
+            </form>
+
+            <p class="login-footer">Relay — Internal Workspace Tool</p>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); align-items: center; justify-content: center; z-index: 1000; opacity: 0; transition: opacity 0.2s ease;">
+        <div class="modal-card" style="background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); width: 90%; max-width: 420px; padding: 24px; box-shadow: var(--shadow); transform: scale(0.95); transition: transform 0.2s ease;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                <h3 style="font-size: 18px; font-weight: 700; color: var(--text);">Forgot Password</h3>
+                <button type="button" onclick="closeForgotPasswordModal()" style="color: var(--text2); font-size: 24px; line-height: 1; opacity: 0.7; transition: opacity 0.15s; background: none; border: none; cursor: pointer;">&times;</button>
+            </div>
+            
+            <p style="color: var(--text2); font-size: 13px; margin-bottom: 16px; line-height: 1.5; text-align: left;">
+                Enter your <strong>Employee ID</strong> or <strong>Registered Email</strong> below to generate a password reset link.
+            </p>
+
+            <form id="forgotForm" onsubmit="handleForgotPassword(event)">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <div class="input-wrapper">
+                        <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <input type="text" id="recoveryIdentifier" class="form-input" placeholder="e.g. EMP001 or email@domain.com" required style="width: 100%;">
+                    </div>
+                </div>
+
+                <div id="forgotMsg" style="display: none; font-size: 13px; padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 16px; text-align: left; line-height: 1.4;"></div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" onclick="closeForgotPasswordModal()" class="btn btn-ghost" style="flex: 1; justify-content: center;">Cancel</button>
+                    <button type="submit" id="sendResetBtn" class="btn btn-primary" style="flex: 1.5; justify-content: center;">Send Reset Link</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function togglePassword() {
+            const input = document.getElementById('password');
+            const eyeOpen = document.getElementById('eyeOpen');
+            const eyeClosed = document.getElementById('eyeClosed');
+            if (input.type === 'password') {
+                input.type = 'text';
+                eyeOpen.style.display = 'none';
+                eyeClosed.style.display = 'block';
+            } else {
+                input.type = 'password';
+                eyeOpen.style.display = 'block';
+                eyeClosed.style.display = 'none';
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', function() {
+            const btn = document.getElementById('loginBtn');
+            btn.textContent = 'Signing in...';
+            btn.disabled = true;
+        });
+
+        function showForgotPasswordModal(event) {
+            event.preventDefault();
+            const modal = document.getElementById('forgotPasswordModal');
+            document.getElementById('forgotMsg').style.display = 'none';
+            document.getElementById('recoveryIdentifier').value = '';
+            modal.style.display = 'flex';
+            modal.offsetHeight;
+            modal.style.opacity = '1';
+            modal.querySelector('.modal-card').style.transform = 'scale(1)';
+            setTimeout(() => document.getElementById('recoveryIdentifier').focus(), 100);
+        }
+
+        function closeForgotPasswordModal() {
+            const modal = document.getElementById('forgotPasswordModal');
+            modal.style.opacity = '0';
+            modal.querySelector('.modal-card').style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 200);
+        }
+
+        async function handleForgotPassword(e) {
+            e.preventDefault();
+            const identifier = document.getElementById('recoveryIdentifier').value.trim();
+            const btn = document.getElementById('sendResetBtn');
+            const msg = document.getElementById('forgotMsg');
+
+            if (!identifier) return;
+
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+            msg.style.display = 'none';
+
+            try {
+                const formData = new FormData();
+                formData.append('identifier', identifier);
+
+                const res = await fetch('/auth/forgot-password', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await res.json();
+                msg.style.display = 'block';
+
+                if (data.success) {
+                    msg.style.background = 'rgba(16, 185, 129, 0.12)';
+                    msg.style.color = '#34d399';
+                    msg.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+                    msg.innerHTML = `${data.message}<br><br><a href="${data.reset_url}" style="color: #38bdf8; font-weight: 600; word-break: break-all;">Click here to reset password now →</a>`;
+                    btn.textContent = 'Done';
+                } else {
+                    msg.style.background = 'rgba(239, 68, 68, 0.12)';
+                    msg.style.color = '#f87171';
+                    msg.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                    msg.textContent = data.message || 'Error processing request.';
+                    btn.textContent = 'Send Reset Link';
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                msg.style.display = 'block';
+                msg.style.background = 'rgba(239, 68, 68, 0.12)';
+                msg.style.color = '#f87171';
+                msg.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                msg.textContent = 'Network error. Please try again.';
+                btn.textContent = 'Send Reset Link';
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

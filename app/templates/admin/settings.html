@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}Settings — Relay{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+
+<div class="card settings-card">
+    <div class="card-header">
+        <h2 class="card-title">Application Settings</h2>
+        <span class="text-muted">Configure attendance rules and timings</span>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin.settings') }}" class="settings-form">
+        <!-- Office IP -->
+        <div class="settings-section">
+            <div class="settings-section-header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                    <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+                </svg>
+                Network Security
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Office IP Address</div>
+                    <div class="setting-desc">{{ settings.office_ip.description }}</div>
+                </div>
+                <div class="setting-control">
+                    <input type="text" name="office_ip" class="form-input"
+                           value="{{ settings.office_ip.value }}"
+                           placeholder="e.g. 192.168.1.100 (leave empty to disable)">
+                    {% if not settings.office_ip.value %}
+                        <div class="setting-hint warning">⚠ IP validation disabled — employees can check in from anywhere</div>
+                    {% else %}
+                        <div class="setting-hint success">✓ Only {{ settings.office_ip.value }} can check in/out</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance Timings -->
+        <div class="settings-section">
+            <div class="settings-section-header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                Attendance Timings
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">On-Time Check-In Deadline</div>
+                    <div class="setting-desc">{{ settings.checkin_time.description }}</div>
+                </div>
+                <div class="setting-control">
+                    <input type="time" name="checkin_time" class="form-input form-input-time"
+                           value="{{ settings.checkin_time.value }}">
+                    <div class="setting-hint">Check-in at or before this time = Present</div>
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Late Threshold</div>
+                    <div class="setting-desc">{{ settings.late_threshold.description }}</div>
+                </div>
+                <div class="setting-control">
+                    <input type="time" name="late_threshold" class="form-input form-input-time"
+                           value="{{ settings.late_threshold.value }}">
+                    <div class="setting-hint">Check-in after on-time deadline = Late</div>
+                </div>
+            </div>
+
+
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Last Entry Time (Check-in Cut-off)</div>
+                    <div class="setting-desc">{{ settings.last_entry_time.description }}</div>
+                </div>
+                <div class="setting-control">
+                    <input type="time" name="last_entry_time" class="form-input form-input-time"
+                           value="{{ settings.last_entry_time.value }}">
+                    <div class="setting-hint">Employees cannot check in after this time unless unlocked</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Worksheet -->
+        <div class="settings-section">
+            <div class="settings-section-header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+                Worksheet
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Worksheet Lock Time</div>
+                    <div class="setting-desc">{{ settings.worksheet_lock_time.description }}</div>
+                </div>
+                <div class="setting-control">
+                    <input type="time" name="worksheet_lock_time" class="form-input form-input-time"
+                           value="{{ settings.worksheet_lock_time.value }}">
+                    <div class="setting-hint">Employees cannot edit their worksheet after this time</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weekend & Saturday Policy -->
+        <div class="settings-section">
+            <div class="settings-section-header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Weekend & Saturday Policy
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Week Off Days</div>
+                    <div class="setting-desc">Select which days are official company week-offs</div>
+                </div>
+                <div class="setting-control">
+                    <select name="weekend_policy" class="form-input" style="width: 220px; background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); padding: 6px 12px; outline: none;">
+                        <option value="sunday_only" {% if settings.weekend_policy.value == 'sunday_only' %}selected{% endif %}>Sunday Only (Sundays OFF)</option>
+                        <option value="sat_sun" {% if settings.weekend_policy.value == 'sat_sun' %}selected{% endif %}>Saturday & Sunday (Both OFF)</option>
+                    </select>
+                    <div class="setting-hint">Determines full off-days on the attendance tracker</div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- System Maintenance -->
+        <div class="settings-section">
+            <div class="settings-section-header" style="color: #f59e0b;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                </svg>
+                System Maintenance
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Maintenance Mode</div>
+                    <div class="setting-desc">{{ settings.maintenance_mode.description if settings.maintenance_mode else 'Block non-admin employee access during servicing' }}</div>
+                </div>
+                <div class="setting-control">
+                    <select name="maintenance_mode" class="form-input" style="width: 220px; background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); padding: 6px 12px; outline: none;">
+                        <option value="false" {% if settings.maintenance_mode and settings.maintenance_mode.value == 'false' %}selected{% endif %}>OFF — Normal Operation</option>
+                        <option value="true" {% if settings.maintenance_mode and settings.maintenance_mode.value == 'true' %}selected{% endif %}>ON — Maintenance Active</option>
+                    </select>
+                    {% if settings.maintenance_mode and settings.maintenance_mode.value == 'true' %}
+                        <div class="setting-hint warning">⚠️ Maintenance Mode is ACTIVE. Employees are currently blocked.</div>
+                    {% else %}
+                        <div class="setting-hint success">✓ App is running normally for all employees</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Testing & Development -->
+        <div class="settings-section">
+            <div class="settings-section-header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
+                </svg>
+                Testing & Development
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Disable All Timing Locks</div>
+                    <div class="setting-desc">{{ settings.disable_timing_lock.description }}</div>
+                </div>
+                <div class="setting-control">
+                    <select name="disable_timing_lock" class="form-input" style="width: 150px; background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); padding: 6px 12px; outline: none;">
+                        <option value="false" {% if settings.disable_timing_lock.value == 'false' %}selected{% endif %}>No (Enable locks)</option>
+                        <option value="true" {% if settings.disable_timing_lock.value == 'true' %}selected{% endif %}>Yes (Disable locks)</option>
+                    </select>
+                    <div class="setting-hint">Bypasses worksheet lock times and check-in cut-offs for testing</div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Save Button -->
+        <div class="settings-footer">
+            <div class="settings-summary">
+                <div class="summary-rule">
+                    <span class="rule-label">Current Rule:</span>
+                    Check-in by <strong>{{ settings.checkin_time.value }}</strong> &rarr; Present |
+                    After <strong>{{ settings.late_threshold.value }}</strong> &rarr; Late |
+                    Worksheet locks at <strong>{{ settings.worksheet_lock_time.value }}</strong> |
+                    Half Days set via <a href="{{ url_for('admin.calendar_view') }}" style="color:var(--accent)">Company Calendar</a>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Save Settings
+            </button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

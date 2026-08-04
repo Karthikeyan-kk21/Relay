@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block title %}Monthly Attendance Sheet — Relay{% endblock %}
+{% block page_title %}Monthly Attendance Sheet{% endblock %}
+
+{% block content %}
+<style>
+.sheet-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.sheet-header-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.sheet-title-group h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0 0 4px 0;
+}
+
+.sheet-title-group span {
+    font-size: 0.875rem;
+    color: var(--text2);
+}
+
+.sheet-filters {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sheet-select {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.table-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+}
+
+.sheet-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.825rem;
+    color: var(--text);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.sheet-table th, .sheet-table td {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+}
+
+.sheet-table th {
+    background: var(--surface2);
+    color: var(--text2);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+
+.sheet-table tr:hover td {
+    background: var(--surface2);
+}
+
+.sticky-col-sno {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    background: var(--surface);
+    width: 50px;
+}
+
+.sticky-col-name {
+    position: sticky;
+    left: 50px;
+    z-index: 10;
+    background: var(--surface);
+    text-align: left !important;
+    min-width: 160px;
+    font-weight: 600;
+}
+
+.sheet-table th.sticky-col-sno,
+.sheet-table th.sticky-col-name {
+    background: var(--surface2);
+    z-index: 20;
+}
+
+.day-cell {
+    min-width: 110px;
+}
+
+.day-cell.weekend {
+    background: var(--surface2);
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+}
+
+.badge-present { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+.badge-late { background: rgba(249, 115, 22, 0.15); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
+.badge-wfh { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+.badge-halfday { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+.badge-absent { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+.badge-off { background: rgba(148, 163, 184, 0.1); color: #64748b; }
+.badge-holiday { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+
+.time-label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text3);
+    line-height: 1.3;
+}
+
+.summary-col {
+    font-weight: 600;
+    background: var(--surface2);
+}
+
+.percentage-pill {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+}
+</style>
+
+<div class="sheet-container">
+    <!-- Header Controls -->
+    <div class="sheet-header-card">
+        <div class="sheet-title-group">
+            <h2>Monthly Attendance Tracker</h2>
+            <span>Viewing records for {{ month_name }} {{ year }} ({{ working_days_count }} Working Days)</span>
+        </div>
+
+        <form method="GET" action="{{ url_for('admin.sheet') }}" class="sheet-filters">
+            <select name="month" class="sheet-select" onchange="this.form.submit()">
+                {% for m_num, m_name in months_list %}
+                    <option value="{{ m_num }}" {% if m_num == month %}selected{% endif %}>{{ m_name }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="year" class="sheet-select" onchange="this.form.submit()">
+                {% for y in range(2025, 2028) %}
+                    <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    <!-- Attendance Grid Table -->
+    <div class="table-wrapper">
+        <table class="sheet-table">
+            <thead>
+                <tr>
+                    <th class="sticky-col-sno">S.No</th>
+                    <th class="sticky-col-name">Name</th>
+                    {% for d in days %}
+                        <th class="{% if d.is_weekend %}weekend{% endif %}">
+                            {{ d.weekday }}<br>{{ d.day }}
+                        </th>
+                    {% endfor %}
+                    <th class="summary-col">Present Days</th>
+                    <th class="summary-col">Half Days</th>
+                    <th class="summary-col">Absent Days</th>
+                    <th class="summary-col">Holidays</th>
+                    <th class="summary-col">Weekend Days</th>
+                    <th class="summary-col">Attendance %</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in matrix %}
+                    <tr>
+                        <td class="sticky-col-sno">{{ row.s_no }}</td>
+                        <td class="sticky-col-name">{{ row.user.full_name }}</td>
+                        
+                        {% for d in days %}
+                            {% set cell = row.days[d.day] %}
+                            <td class="day-cell {% if d.is_weekend %}weekend{% endif %}">
+                                {% if cell.status == 'Present' or cell.status == 'On Time' %}
+                                    <span class="status-badge badge-present">P</span>
+                                {% elif cell.status == 'Late' %}
+                                    <span class="status-badge badge-late">P (Late)</span>
+                                {% elif cell.status == 'WFH' %}
+                                    <span class="status-badge badge-wfh">WFH</span>
+                                {% elif cell.status == 'Half Day' %}
+                                    <span class="status-badge badge-halfday">HD</span>
+                                {% elif cell.status == 'Holiday' %}
+                                    <span class="status-badge badge-holiday" title="{{ cell.holiday_name }}">🌴 H</span>
+                                {% elif cell.status == 'Absent' %}
+                                    <span class="status-badge badge-absent">A</span>
+                                {% elif cell.status == 'OFF' %}
+                                    <span class="status-badge badge-off">OFF</span>
+                                {% else %}
+                                    <span style="color: #475569;">--</span>
+                                {% endif %}
+
+                                {% if cell.check_in %}
+                                    <span class="time-label">In: {{ cell.check_in }}</span>
+                                {% endif %}
+                                {% if cell.check_out %}
+                                    <span class="time-label">Out: {{ cell.check_out }}</span>
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+
+                        <td class="summary-col" style="color: #4ade80;">{{ row.present_count + row.late_count }}</td>
+                        <td class="summary-col" style="color: #facc15;">{{ row.halfday_count }}</td>
+                        <td class="summary-col" style="color: #f87171;">{{ row.absent_count }}</td>
+                        <td class="summary-col" style="color: #c084fc;">{{ row.holiday_count }}</td>
+                        <td class="summary-col" style="color: #94a3b8;">{{ row.weekend_count }}</td>
+                        <td class="summary-col">
+                            <span class="percentage-pill">{{ row.percentage }}%</span>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="{{ days|length + 8 }}" style="padding: 40px; color: #64748b;">
+                            No employee records found.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

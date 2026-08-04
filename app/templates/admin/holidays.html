@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Company Holidays — Relay{% endblock %}
+{% block page_title %}Company Holidays{% endblock %}
+
+{% block content %}
+
+<div class="page-actions">
+    <button class="btn btn-primary" onclick="showModal('addHolidayModal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Add Holiday
+    </button>
+</div>
+
+<!-- Holidays List -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Official Company Holidays</h2>
+        <span class="text-muted">{{ holidays|length }} total</span>
+    </div>
+
+    {% if holidays %}
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Holiday Name</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in holidays %}
+                <tr id="hrow-{{ h.id }}">
+                    <td class="font-mono" style="font-weight: 600;">
+                        {{ h.date.strftime('%d %b %Y (%a)') }}
+                    </td>
+                    <td>
+                        <span class="status-badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">
+                            🌴 {{ h.name }}
+                        </span>
+                    </td>
+                    <td class="text-muted">{{ h.description or '—' }}</td>
+                    <td>
+                        <button class="btn btn-ghost btn-xs text-danger" onclick="deleteHoliday({{ h.id }}, '{{ h.name }}')">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <p>No company holidays configured yet. Add your official holiday list above.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ── Add Holiday Modal ───────────────────────────────────── -->
+<div class="modal-overlay" id="addHolidayModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Add Official Holiday</h3>
+            <button class="modal-close" onclick="hideModal('addHolidayModal')">×</button>
+        </div>
+        <form method="POST" action="{{ url_for('admin.holidays') }}" class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Holiday Date</label>
+                <input type="date" name="date" class="form-input" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Holiday Title / Name</label>
+                <input type="text" name="name" class="form-input" placeholder="e.g. Independence Day, Diwali" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description (Optional)</label>
+                <input type="text" name="description" class="form-input" placeholder="Optional notes">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="hideModal('addHolidayModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Holiday</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function deleteHoliday(id, name) {
+        if (!confirm(`Are you sure you want to delete the holiday "${name}"?`)) return;
+        const res = await fetch('/admin/holidays/delete/' + id, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            const row = document.getElementById('hrow-' + id);
+            if (row) row.remove();
+        } else {
+            showToast(data.message, 'error');
+        }
+    }
+</script>
+{% endblock %}

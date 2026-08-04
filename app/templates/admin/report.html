@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}CEO Report — Relay{% endblock %}
+{% block page_title %}CEO Report{% endblock %}
+
+{% block content %}
+
+<div class="report-layout">
+    <!-- Controls -->
+    <div class="card report-controls">
+        <div class="card-header">
+            <h2 class="card-title">Generate Report</h2>
+        </div>
+        <div class="report-controls-body">
+            <div class="form-group">
+                <label class="form-label">Report Date</label>
+                <input type="date" id="reportDate" class="form-input form-input-date"
+                       value="{{ today.strftime('%Y-%m-%d') }}"
+                       max="{{ today.strftime('%Y-%m-%d') }}">
+            </div>
+            <button class="btn btn-primary btn-full" id="generateBtn" onclick="generateReport()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+                Generate with AI
+            </button>
+            <div class="ai-note" id="aiNote" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- Report Preview -->
+    <div class="card report-preview-card">
+        <div class="card-header">
+            <h2 class="card-title">Report Preview</h2>
+            <div class="report-actions" id="reportActions" style="display:none">
+                <button class="btn btn-ghost btn-sm" onclick="copyReport()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    Copy
+                </button>
+                <button class="btn btn-ghost btn-sm" onclick="exportTxt()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    TXT
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="exportPdf()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    PDF
+                </button>
+            </div>
+        </div>
+
+        <div id="reportEmpty" class="empty-state">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            <p>Select a date and click Generate to create a report</p>
+        </div>
+
+        <div id="reportLoading" style="display:none" class="report-loading">
+            <div class="loading-spinner-large"></div>
+            <p>Generating report with AI...</p>
+        </div>
+
+        <div id="reportContent" style="display:none">
+            <pre class="report-text" id="reportText"></pre>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden export forms -->
+<form method="POST" action="{{ url_for('admin.export_txt') }}" id="txtForm" style="display:none">
+    <input type="hidden" name="content" id="txtContent">
+    <input type="hidden" name="date" id="txtDate">
+</form>
+<form method="POST" action="{{ url_for('admin.export_pdf') }}" id="pdfForm" style="display:none">
+    <input type="hidden" name="content" id="pdfContent">
+    <input type="hidden" name="date" id="pdfDate">
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentReport = '';
+    let currentDate = '';
+
+    async function generateReport() {
+        const date = document.getElementById('reportDate').value;
+        if (!date) { showToast('Select a date first.', 'error'); return; }
+
+        const btn = document.getElementById('generateBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Generating...';
+
+        document.getElementById('reportEmpty').style.display = 'none';
+        document.getElementById('reportContent').style.display = 'none';
+        document.getElementById('reportLoading').style.display = 'flex';
+        document.getElementById('reportActions').style.display = 'none';
+
+        const form = new FormData();
+        form.append('date', date);
+
+        try {
+            const res = await fetch('/admin/report/generate', { method: 'POST', body: form });
+            const data = await res.json();
+
+            document.getElementById('reportLoading').style.display = 'none';
+
+            if (data.success) {
+                currentReport = data.report;
+                currentDate = date;
+                document.getElementById('reportText').textContent = data.report;
+                document.getElementById('reportContent').style.display = 'block';
+                document.getElementById('reportActions').style.display = 'flex';
+
+                const noteEl = document.getElementById('aiNote');
+                if (data.message) {
+                    noteEl.textContent = '⚠ ' + data.message;
+                    noteEl.style.display = 'block';
+                } else if (data.ai_used) {
+                    noteEl.textContent = '✓ Generated with Gemini AI';
+                    noteEl.className = 'ai-note success';
+                    noteEl.style.display = 'block';
+                }
+
+                showToast('Report generated!', 'success');
+            } else {
+                document.getElementById('reportEmpty').style.display = 'flex';
+                showToast(data.message || 'Failed to generate report.', 'error');
+            }
+        } catch(e) {
+            document.getElementById('reportLoading').style.display = 'none';
+            document.getElementById('reportEmpty').style.display = 'flex';
+            showToast('Network error. Try again.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Generate with AI';
+        }
+    }
+
+    function copyReport() {
+        if (!currentReport) return;
+        navigator.clipboard.writeText(currentReport).then(() => {
+            showToast('Report copied to clipboard!', 'success');
+        }).catch(() => {
+            showToast('Copy failed. Please select and copy manually.', 'error');
+        });
+    }
+
+    function exportTxt() {
+        if (!currentReport) return;
+        document.getElementById('txtContent').value = currentReport;
+        document.getElementById('txtDate').value = currentDate;
+        document.getElementById('txtForm').submit();
+    }
+
+    function exportPdf() {
+        if (!currentReport) return;
+        document.getElementById('pdfContent').value = currentReport;
+        document.getElementById('pdfDate').value = currentDate;
+        document.getElementById('pdfForm').submit();
+    }
+</script>
+{% endblock %}

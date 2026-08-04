@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Import Past Attendance — Relay{% endblock %}
+{% block page_title %}Historical Attendance Entry & CSV Import{% endblock %}
+
+{% block content %}
+<style>
+.import-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 24px;
+}
+
+.import-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.import-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+}
+
+.import-icon-badge {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(79, 142, 247, 0.15);
+    color: #4f8ef7;
+}
+
+.import-card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+}
+
+.import-card-desc {
+    font-size: 0.85rem;
+    color: var(--text2);
+    margin-top: 2px;
+}
+</style>
+
+<div class="import-grid">
+    <!-- Option A: Bulk CSV Upload Card -->
+    <div class="import-card">
+        <div class="import-card-header">
+            <div class="import-icon-badge">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="import-card-title">Bulk CSV File Import</h3>
+                <div class="import-card-desc">Upload past attendance logs in bulk using a CSV spreadsheet</div>
+            </div>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px dashed #2d3354; border-radius: 10px; padding: 20px; text-align: center;">
+            <p style="font-size: 0.875rem; color: #94a3b8; margin-bottom: 14px;">
+                Download our standard CSV format template, fill in your past dates, and upload it here.
+            </p>
+            <a href="{{ url_for('admin.download_template') }}" class="btn btn-ghost btn-sm" style="margin-bottom: 16px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download Sample CSV Template
+            </a>
+        </div>
+
+        <form method="POST" action="{{ url_for('admin.import_attendance') }}" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 16px;">
+            <input type="hidden" name="action_type" value="csv_upload">
+
+            <div class="form-group">
+                <label class="form-label">Select CSV File</label>
+                <input type="file" name="csv_file" accept=".csv" class="form-input" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Upload & Import CSV Records
+            </button>
+        </form>
+    </div>
+
+    <!-- Option B: Manual Date Range Entry Card -->
+    <div class="import-card">
+        <div class="import-card-header">
+            <div class="import-icon-badge" style="background: rgba(34, 197, 94, 0.15); color: #4ade80;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="import-card-title">Manual Date Range Batch Entry</h3>
+                <div class="import-card-desc">Backfill attendance for an employee across a range of past dates</div>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('admin.import_attendance') }}" style="display: flex; flex-direction: column; gap: 14px;">
+            <input type="hidden" name="action_type" value="manual_range">
+
+            <div class="form-group">
+                <label class="form-label">Employee</label>
+                <select name="user_id" class="form-input" required>
+                    {% for emp in employees %}
+                        <option value="{{ emp.id }}">{{ emp.full_name }} ({{ emp.employee_id }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="end_date" class="form-input" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-input">
+                    <option value="Present">Present (On Time)</option>
+                    <option value="Late">Late</option>
+                    <option value="WFH">Work From Home (WFH)</option>
+                    <option value="Half Day">Half Day (HD)</option>
+                    <option value="Absent">Absent</option>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label class="form-label">Check-In Time</label>
+                    <input type="time" name="check_in" class="form-input" value="09:30">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Check-Out Time</label>
+                    <input type="time" name="check_out" class="form-input" value="18:30">
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #94a3b8;">
+                <input type="checkbox" name="skip_weekends" value="true" id="skip_weekends" checked>
+                <label for="skip_weekends">Skip Saturdays and Sundays</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="margin-top: 6px;">
+                Save Date Range Records
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

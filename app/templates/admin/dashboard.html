@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — Relay{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- Summary Cards -->
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-accent">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+        </div>
+        <div class="stat-body">
+            <div class="stat-value">{{ summary.total }}</div>
+            <div class="stat-label">Total</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-success">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+        </div>
+        <div class="stat-body">
+            <div class="stat-value">{{ summary.present }}</div>
+            <div class="stat-label">Present</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-warning">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+        </div>
+        <div class="stat-body">
+            <div class="stat-value">{{ summary.late }}</div>
+            <div class="stat-label">Late</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-danger">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+        </div>
+        <div class="stat-body">
+            <div class="stat-value">{{ summary.absent }}</div>
+            <div class="stat-label">Absent</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-info">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            </svg>
+        </div>
+        <div class="stat-body">
+            <div class="stat-value">{{ summary.wfh }}</div>
+            <div class="stat-label">WFH</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-purple">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+            </svg>
+        </div>
+        <div class="stat-body">
+            <div class="stat-value">{{ summary.hd }}</div>
+            <div class="stat-label">Half Day</div>
+        </div>
+    </div>
+</div>
+
+<!-- Worksheet Summary -->
+<div class="worksheet-summary-bar">
+    <div class="ws-bar-item ws-updated">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>{{ summary.worksheet_updated }} Updated</span>
+    </div>
+    <div class="ws-bar-item ws-pending">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+        <span>{{ summary.worksheet_pending }} Pending</span>
+    </div>
+    <a href="{{ url_for('admin.report') }}" class="btn btn-primary btn-sm ms-auto">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        Generate CEO Report
+    </a>
+</div>
+
+<!-- Employee Table -->
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <h2 class="card-title" style="margin-bottom: 2px;">Employee Status</h2>
+            <span class="text-muted" style="font-size: 12px;">{{ summary.total }} employees</span>
+        </div>
+        
+        <!-- Date Navigator -->
+        <div class="date-navigator" style="display: flex; align-items: center; gap: 6px; background: var(--bg2); border: 1px solid var(--border); padding: 4px 8px; border-radius: var(--radius-sm);">
+            <a href="?date={{ prev_date_str }}" class="btn btn-ghost btn-xs" style="padding: 4px 6px;" title="Previous Day">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+            </a>
+            
+            <input type="date" id="dashboardDatePicker" value="{{ selected_date_str }}" onchange="navigateDate(this.value)" 
+                   style="background: transparent; border: none; color: var(--text); font-family: inherit; font-size: 13.5px; font-weight: 700; outline: none; cursor: pointer; padding: 2px 4px;">
+            
+            {% if not is_today %}
+            <a href="?date={{ next_date_str }}" class="btn btn-ghost btn-xs" style="padding: 4px 6px;" title="Next Day">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="9 18 15 12 9 6"/>
+                </svg>
+            </a>
+            <a href="?" class="btn btn-ghost btn-xs" style="padding: 4px 6px; font-size: 11px; font-weight: 600; color: var(--accent);" title="Go to Today">
+                Today
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if emp_data %}
+    <div class="table-wrapper">
+        <table class="data-table" id="adminTable">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>ID</th>
+                    <th>Status</th>
+                    <th>Check In</th>
+                    <th>Check Out</th>
+                    <th>Worksheet</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in emp_data %}
+                <tr id="row-{{ item.user.id }}">
+                    <td>
+                        <div class="emp-cell">
+                            <div class="emp-avatar">{{ item.user.full_name[0].upper() }}</div>
+                            <span>{{ item.user.full_name }}</span>
+                        </div>
+                    </td>
+                    <td class="font-mono text-muted">{{ item.user.employee_id }}</td>
+                    <td>
+                        <span class="status-badge status-{{ item.attendance.status_color() if item.attendance else 'muted' }}"
+                              id="status-{{ item.user.id }}">
+                            {{ item.attendance.status if item.attendance else 'Absent' }}
+                        </span>
+                    </td>
+                    <td class="font-mono" id="checkin-{{ item.user.id }}">
+                        {{ item.attendance.check_in_ist() if item.attendance else '--:--' }}
+                    </td>
+                    <td class="font-mono" id="checkout-{{ item.user.id }}">
+                        {{ item.attendance.check_out_ist() if item.attendance else '--:--' }}
+                    </td>
+                    <td>
+                        {% if item.worksheet and item.worksheet.is_submitted() %}
+                            <span class="status-badge status-success">Updated</span>
+                        {% else %}
+                            <span class="status-badge status-danger">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="action-group" style="display: flex; gap: 4px; align-items: center;">
+                            <!-- Mark Status Dropdown -->
+                            <div class="dropdown" id="dropdown-{{ item.user.id }}">
+                                <button class="btn btn-ghost btn-xs" onclick="toggleDropdown({{ item.user.id }})">
+                                    Mark ▾
+                                </button>
+                                <div class="dropdown-menu" id="dmenu-{{ item.user.id }}">
+                                    <button onclick="markStatus({{ item.user.id }}, 'WFH')">WFH</button>
+                                    <button onclick="markStatus({{ item.user.id }}, 'Leave')">Leave</button>
+                                    <button onclick="markStatus({{ item.user.id }}, 'Present')">Present</button>
+                                    <button onclick="markStatus({{ item.user.id }}, 'Absent')">Absent</button>
+                                </div>
+                            </div>
+                            <!-- Edit Times Button -->
+                            <button class="btn btn-ghost btn-xs" onclick="openEditTimesModal({{ item.user.id }}, '{{ item.user.full_name }}', '{{ item.attendance.check_in_ist() if item.attendance and item.attendance.check_in else '' }}', '{{ item.attendance.check_out_ist() if item.attendance and item.attendance.check_out else '' }}')">✏️ Times</button>
+                            
+                            <!-- Unlock CI Button -->
+                            {% if not item.attendance or not item.attendance.check_in %}
+                                <button class="btn btn-ghost btn-xs" id="unlock-ci-btn-{{ item.user.id }}" onclick="unlockCheckin({{ item.user.id }})" {% if item.attendance and item.attendance.admin_unlocked %}disabled style="opacity: 0.5;"{% endif %}>🔓 CI</button>
+                            {% endif %}
+                            
+                            <!-- Worksheet Actions -->
+                            {% if item.worksheet and item.worksheet.is_locked %}
+                                <button class="btn btn-ghost btn-xs" onclick="unlockWorksheet({{ item.user.id }})">🔓 WS</button>
+                            {% else %}
+                                <button class="btn btn-ghost btn-xs" onclick="unlockWorksheet({{ item.user.id }})">🔓 WS</button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No employees found. <a href="{{ url_for('admin.users') }}">Add employees →</a></p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Edit Times Modal -->
+<div id="editTimesModal" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); align-items: center; justify-content: center; z-index: 1000; opacity: 0; transition: opacity 0.2s ease;">
+    <div class="modal-card" style="background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); width: 90%; max-width: 400px; padding: 24px; box-shadow: var(--shadow); transform: scale(0.95); transition: transform 0.2s ease;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: var(--text);">Edit Times: <span id="modalEmpName" style="color: var(--accent);"></span></h3>
+            <button type="button" onclick="closeEditTimesModal()" style="color: var(--text2); font-size: 24px; line-height: 1; opacity: 0.7; transition: opacity 0.15s; background: none; border: none; cursor: pointer;">&times;</button>
+        </div>
+        <form id="editTimesForm" onsubmit="saveEditTimes(event)">
+            <input type="hidden" id="editUserId">
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label">Check In Time</label>
+                <input type="time" id="editCheckIn" class="form-input" style="width: 100%;">
+            </div>
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label class="form-label">Check Out Time</label>
+                <input type="time" id="editCheckOut" class="form-input" style="width: 100%;">
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button type="button" onclick="closeEditTimesModal()" class="btn btn-ghost" style="padding: 8px 16px; border: 1px solid var(--border);">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="padding: 8px 16px;">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleDropdown(userId) {
+        const menu = document.getElementById('dmenu-' + userId);
+        const allMenus = document.querySelectorAll('.dropdown-menu');
+        allMenus.forEach(m => { if (m !== menu) m.classList.remove('open'); });
+        menu.classList.toggle('open');
+    }
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.dropdown')) {
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open'));
+        }
+    });
+
+    async function markStatus(userId, status) {
+        document.getElementById('dmenu-' + userId).classList.remove('open');
+        const form = new FormData();
+        form.append('status', status);
+        const res = await fetch('/admin/attendance/mark/' + userId, { method: 'POST', body: form });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            const badge = document.getElementById('status-' + userId);
+            const colorMap = { Present: 'success', Late: 'warning', Absent: 'danger', WFH: 'info', HD: 'purple', Leave: 'muted' };
+            badge.textContent = status;
+            badge.className = 'status-badge status-' + (colorMap[status] || 'muted');
+        } else {
+            showToast(data.message, 'error');
+        }
+    }
+
+    async function unlockWorksheet(userId) {
+        const res = await fetch('/admin/worksheet/unlock/' + userId, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+        } else {
+            showToast(data.message, 'error');
+        }
+    }
+
+    function navigateDate(dateVal) {
+        window.location.href = '?date=' + dateVal;
+    }
+
+    function openEditTimesModal(userId, fullName, checkIn, checkOut) {
+        document.getElementById('editUserId').value = userId;
+        document.getElementById('modalEmpName').textContent = fullName;
+        document.getElementById('editCheckIn').value = checkIn;
+        document.getElementById('editCheckOut').value = checkOut;
+        
+        const modal = document.getElementById('editTimesModal');
+        modal.style.display = 'flex';
+        modal.offsetHeight; // trigger reflow
+        modal.style.opacity = '1';
+        modal.querySelector('.modal-card').style.transform = 'scale(1)';
+    }
+
+    function closeEditTimesModal() {
+        const modal = document.getElementById('editTimesModal');
+        modal.style.opacity = '0';
+        modal.querySelector('.modal-card').style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 200);
+    }
+
+    async function saveEditTimes(event) {
+        event.preventDefault();
+        const userId = document.getElementById('editUserId').value;
+        const checkIn = document.getElementById('editCheckIn').value;
+        const checkOut = document.getElementById('editCheckOut').value;
+        const dateStr = document.getElementById('dashboardDatePicker').value;
+        
+        const form = new FormData();
+        form.append('check_in', checkIn);
+        form.append('check_out', checkOut);
+        form.append('date', dateStr);
+        
+        const res = await fetch('/admin/attendance/edit-times/' + userId, { method: 'POST', body: form });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast(data.message, 'success');
+            
+            const checkinCell = document.getElementById('checkin-' + userId);
+            const checkoutCell = document.getElementById('checkout-' + userId);
+            const statusBadge = document.getElementById('status-' + userId);
+            
+            checkinCell.textContent = data.check_in || '--:--';
+            checkoutCell.textContent = data.check_out || '--:--';
+            
+            statusBadge.textContent = data.status;
+            const colorMap = { Present: 'success', Late: 'warning', Absent: 'danger', WFH: 'info', HD: 'purple', Leave: 'muted' };
+            statusBadge.className = 'status-badge status-' + (colorMap[data.status] || 'muted');
+            
+            closeEditTimesModal();
+        } else {
+            showToast(data.message, 'error');
+        }
+    }
+
+    async function unlockCheckin(userId) {
+        const dateStr = document.getElementById('dashboardDatePicker').value;
+        const form = new FormData();
+        form.append('date', dateStr);
+        
+        const res = await fetch('/admin/attendance/unlock-checkin/' + userId, { method: 'POST', body: form });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            const btn = document.getElementById('unlock-ci-btn-' + userId);
+            if (btn) {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+            }
+        } else {
+            showToast(data.message, 'error');
+        }
+    }
+</script>
+{% endblock %}

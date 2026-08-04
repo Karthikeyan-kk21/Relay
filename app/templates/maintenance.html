@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Maintenance — Relay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg, #0b0f19);
+            font-family: 'Inter', sans-serif;
+            color: var(--text, #f1f5f9);
+        }
+        .maint-container {
+            max-width: 520px;
+            width: 90%;
+            text-align: center;
+            padding: 40px 30px;
+            background: var(--surface, #151c2c);
+            border: 1px solid var(--border, rgba(255,255,255,0.08));
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        .maint-container::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #f59e0b, #ef4444, #38bdf8);
+        }
+        .maint-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(245, 158, 11, 0.12);
+            color: #f59e0b;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            border: 1px solid rgba(245, 158, 11, 0.25);
+        }
+        .maint-title {
+            font-size: 24px;
+            font-weight: 800;
+            margin: 0 0 12px 0;
+            letter-spacing: -0.5px;
+        }
+        .maint-desc {
+            font-size: 14px;
+            color: var(--text3, #94a3b8);
+            line-height: 1.6;
+            margin: 0 0 28px 0;
+        }
+        .maint-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: rgba(245, 158, 11, 0.1);
+            color: #fbbf24;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+        .maint-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #f59e0b;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+        .admin-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text3, #94a3b8);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+    </style>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/relay_logo.png') }}">
+</head>
+<body>
+
+<div class="maint-container">
+    <div style="margin-bottom: 20px;">
+        <img src="{{ url_for('static', filename='images/relay_logo.png') }}" alt="Relay Logo" style="width: 64px; height: 64px; border-radius: 16px; box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35);">
+    </div>
+
+
+    <div class="maint-badge">
+        <div class="maint-dot"></div>
+        SYSTEM SERVICING IN PROGRESS
+    </div>
+
+    <h1 class="maint-title">System Under Scheduled Maintenance</h1>
+    <p class="maint-desc">
+        Relay is currently undergoing system upgrades and maintenance.
+        Employee access and check-ins are temporarily suspended.
+        We will be back online shortly. Thank you for your patience!
+    </p>
+
+    <div style="border-top: 1px solid var(--border, rgba(255,255,255,0.08)); padding-top: 20px;">
+        <a href="{{ url_for('auth.login') }}" class="admin-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            Administrator Login
+        </a>
+    </div>
+</div>
+
+</body>
+</html>

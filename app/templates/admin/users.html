@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}Employees — Relay{% endblock %}
+{% block page_title %}Employee Management{% endblock %}
+
+{% block content %}
+
+<div class="page-actions">
+    <button class="btn btn-primary" onclick="showModal('createModal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Add Employee
+    </button>
+</div>
+
+<!-- Employee Table -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">All Employees</h2>
+        <span class="text-muted">{{ users|length }} total</span>
+    </div>
+
+    {% if users %}
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Employee ID</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Joined Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr id="urow-{{ user.id }}">
+                    <td>
+                        <div class="emp-cell">
+                            <div class="emp-avatar">{{ user.full_name[0].upper() }}</div>
+                            {{ user.full_name }}
+                        </div>
+                    </td>
+                    <td class="font-mono">{{ user.employee_id }}</td>
+                    <td class="text-muted">{{ user.email }}</td>
+                    <td>
+                        {% if user.active %}
+                            <span class="status-badge status-success" id="ustatus-{{ user.id }}">Active</span>
+                        {% else %}
+                            <span class="status-badge status-muted" id="ustatus-{{ user.id }}">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted" id="ujoining-{{ user.id }}">
+                        {{ user.joining_date.strftime('%d %b %Y') if user.joining_date else (user.created_at.strftime('%d %b %Y') if user.created_at else '—') }}
+                    </td>
+                    <td>
+                        <div class="action-group">
+                            <button class="btn btn-ghost btn-xs"
+                                    onclick="showEditModal({{ user.id }}, '{{ user.full_name }}', '{{ user.email }}', '{{ user.joining_date.strftime('%Y-%m-%d') if user.joining_date else '' }}')">
+                                Edit
+                            </button>
+                            <button class="btn btn-ghost btn-xs"
+                                    onclick="toggleUser({{ user.id }}, '{{ user.full_name }}')"
+                                    id="toggleBtn-{{ user.id }}">
+                                {{ 'Deactivate' if user.active else 'Activate' }}
+                            </button>
+                            <button class="btn btn-ghost btn-xs" onclick="showResetModal({{ user.id }}, '{{ user.full_name }}')">
+                                Reset Password
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+        </svg>
+        <p>No employees yet. Add your first employee above.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ── Create Employee Modal ──────────────────────────────── -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Add New Employee</h3>
+            <button class="modal-close" onclick="hideModal('createModal')">×</button>
+        </div>
+        <form method="POST" action="{{ url_for('admin.create_user') }}" class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Employee ID</label>
+                <input type="text" name="employee_id" class="form-input" placeholder="e.g. EMP001" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Full Name</label>
+                <input type="text" name="full_name" class="form-input" placeholder="Full name" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-input" placeholder="email@company.com" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Joining Date</label>
+                <input type="date" name="joining_date" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" name="password" class="form-input" placeholder="Set initial password" required minlength="6">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="hideModal('createModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Employee</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ── Edit Employee Modal ────────────────────────────────── -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Edit Employee — <span id="editUserName"></span></h3>
+            <button class="modal-close" onclick="hideModal('editModal')">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Full Name</label>
+                <input type="text" id="editFullName" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" id="editEmail" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Joining Date</label>
+                <input type="date" id="editJoiningDate" class="form-input">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="hideModal('editModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="doUpdateUser()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Reset Password Modal ───────────────────────────────── -->
+<div class="modal-overlay" id="resetModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Reset Password — <span id="resetUserName"></span></h3>
+            <button class="modal-close" onclick="hideModal('resetModal')">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">New Password</label>
+                <input type="password" id="newPassword" class="form-input" placeholder="Min 6 characters" minlength="6">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="hideModal('resetModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="doResetPassword()">Reset Password</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let resetUserId = null;
+    let editUserId = null;
+
+    function showEditModal(userId, name, email, joiningDate) {
+        editUserId = userId;
+        document.getElementById('editUserName').textContent = name;
+        document.getElementById('editFullName').value = name;
+        document.getElementById('editEmail').value = email;
+        document.getElementById('editJoiningDate').value = joiningDate;
+        showModal('editModal');
+    }
+
+    async function doUpdateUser() {
+        const form = new FormData();
+        form.append('full_name', document.getElementById('editFullName').value);
+        form.append('email', document.getElementById('editEmail').value);
+        form.append('joining_date', document.getElementById('editJoiningDate').value);
+
+        const res = await fetch('/admin/users/update/' + editUserId, { method: 'POST', body: form });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        if (data.success) {
+            hideModal('editModal');
+            setTimeout(() => window.location.reload(), 800);
+        }
+    }
+
+    function showResetModal(userId, name) {
+        resetUserId = userId;
+        document.getElementById('resetUserName').textContent = name;
+        document.getElementById('newPassword').value = '';
+        showModal('resetModal');
+    }
+
+    async function doResetPassword() {
+        const pw = document.getElementById('newPassword').value;
+        if (!pw || pw.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
+        const form = new FormData();
+        form.append('new_password', pw);
+        const res = await fetch('/admin/users/reset-password/' + resetUserId, { method: 'POST', body: form });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        if (data.success) hideModal('resetModal');
+    }
+
+    async function toggleUser(userId, name) {
+        const res = await fetch('/admin/users/toggle/' + userId, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            const badge = document.getElementById('ustatus-' + userId);
+            const btn = document.getElementById('toggleBtn-' + userId);
+            if (data.active) {
+                badge.textContent = 'Active'; badge.className = 'status-badge status-success';
+                btn.textContent = 'Deactivate';
+            } else {
+                badge.textContent = 'Inactive'; badge.className = 'status-badge status-muted';
+                btn.textContent = 'Activate';
+            }
+        } else {
+            showToast(data.message, 'error');
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Company Calendar — Relay{% endblock %}
+{% block page_title %}Company Calendar{% endblock %}
+
+{% block head %}
+<style>
+/* ── Layout ── */
+.emp-cal-layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; }
+@media (max-width: 1000px) { .emp-cal-layout { grid-template-columns: 1fr; } }
+
+.cal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+
+/* Header */
+.cal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.cal-month-label { font-size: 18px; font-weight: 700; }
+.cal-nav { display: flex; gap: 8px; }
+.cal-nav-btn { width: 34px; height: 34px; border-radius: var(--radius-sm); background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); display: flex; align-items: center; justify-content: center; font-size: 18px; text-decoration: none; transition: var(--transition); }
+.cal-nav-btn:hover { background: var(--surface3); color: var(--text); }
+
+/* DOW */
+.cal-dow { display: grid; grid-template-columns: repeat(7, 1fr); }
+.cal-dow-cell { padding: 8px 4px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); background: var(--bg2); border-bottom: 1px solid var(--border); }
+.cal-dow-cell.weekend { color: var(--danger); opacity: 0.7; }
+
+/* Grid */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+
+.cal-day {
+    min-height: 72px;
+    padding: 6px 8px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+}
+.cal-day.other-month { opacity: 0.25; }
+.cal-day.today { background: var(--accent-glow2); }
+.cal-day.today .cal-day-num { background: var(--accent); color: #fff; }
+.cal-day.weekend { background: rgba(255,255,255,0.01); }
+.cal-day.weekend .cal-day-num { color: var(--danger); opacity: 0.7; }
+.cal-day:nth-child(7n) { border-right: none; }
+
+.cal-day-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%;
+    font-size: 12px; font-weight: 600; color: var(--text2);
+    margin-bottom: 4px;
+}
+
+.cal-tag {
+    display: flex; align-items: center; gap: 3px;
+    font-size: 10px; font-weight: 600;
+    padding: 2px 6px; border-radius: 10px;
+    margin-top: 2px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Legend */
+.cal-legend { display: flex; gap: 14px; flex-wrap: wrap; padding: 10px 20px; border-top: 1px solid var(--border); background: var(--bg2); }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text3); font-weight: 500; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* Upcoming Panel */
+.upcoming-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.upcoming-header { padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 700; }
+.upcoming-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.upcoming-item:last-child { border-bottom: none; }
+.up-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.up-body { flex: 1; }
+.up-name { font-size: 13px; font-weight: 600; }
+.up-date { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.up-type { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+.up-days-away { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: var(--accent-glow2); color: var(--accent); white-space: nowrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="emp-cal-layout">
+
+    <!-- ── Calendar ── -->
+    <div class="cal-card">
+        <div class="cal-header">
+            <div class="cal-month-label">{{ month_name }} {{ year }}</div>
+            <div class="cal-nav">
+                <a href="{{ url_for('employee.calendar', year=prev_year, month=prev_month) }}" class="cal-nav-btn">&#8592;</a>
+                <a href="{{ url_for('employee.calendar', year=today.year, month=today.month) }}" class="cal-nav-btn" style="font-size:11px;font-weight:700;">TODAY</a>
+                <a href="{{ url_for('employee.calendar', year=next_year, month=next_month) }}" class="cal-nav-btn">&#8594;</a>
+            </div>
+        </div>
+
+        <!-- DOW header -->
+        <div class="cal-dow">
+            {% for dow in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+            <div class="cal-dow-cell {% if dow == 'Sun' %}weekend{% endif %}">{{ dow }}</div>
+            {% endfor %}
+        </div>
+
+        <!-- Grid -->
+        <div class="cal-grid">
+            {% for week in month_weeks %}
+                {% for d in week %}
+                    {% set tagged = tagged_map.get(d) %}
+                    {% set is_cur = (d.month == month) %}
+                    {% set is_today = (d == today) %}
+                    {% set is_weekend = (d.weekday() == 6) %}
+                    <div class="cal-day
+                        {% if not is_cur %}other-month{% endif %}
+                        {% if is_today %}today{% endif %}
+                        {% if is_weekend %}weekend{% endif %}">
+                        <div class="cal-day-num">{{ d.day }}</div>
+                        {% if tagged %}
+                        <div class="cal-tag"
+                             style="background: {{ tagged.display_color() }}22; color: {{ tagged.display_color() }}; border: 1px solid {{ tagged.display_color() }}44;"
+                             title="{{ tagged.day_type }}: {{ tagged.name }}{% if tagged.description %} — {{ tagged.description }}{% endif %}">
+                            {{ tagged.emoji() }} {{ tagged.name[:13] }}
+                        </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+
+        <!-- Legend -->
+        <div class="cal-legend">
+            {% for dt, color in day_type_colors.items() %}
+            <div class="legend-item">
+                <div class="legend-dot" style="background:{{ color }}"></div>
+                {{ dt }}
+            </div>
+            {% endfor %}
+            <div class="legend-item" style="margin-left:auto">
+                <div class="legend-dot" style="background: var(--accent)"></div>
+                Today
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Upcoming Panel ── -->
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div class="upcoming-card">
+            <div class="upcoming-header">🗓 Upcoming Events</div>
+            {% if upcoming %}
+                {% for h in upcoming %}
+                {% set days_away = (h.date - today).days %}
+                <div class="upcoming-item">
+                    <div class="up-dot" style="background:{{ h.display_color() }}"></div>
+                    <div class="up-body">
+                        <div class="up-name">{{ h.name }}</div>
+                        <div class="up-date">{{ h.date.strftime('%d %b %Y (%a)') }}</div>
+                    </div>
+                    <span class="up-type" style="background:{{ h.display_color() }}22; color:{{ h.display_color() }}">{{ h.day_type }}</span>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div style="padding: 24px 18px; text-align:center; color: var(--text3); font-size:13px;">
+                No upcoming tagged days.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

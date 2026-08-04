@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+{% block title %}Company Calendar — Relay{% endblock %}
+{% block page_title %}Company Calendar{% endblock %}
+
+{% block head %}
+<style>
+/* ── Calendar Layout ─────────────────────────── */
+.cal-layout { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .cal-layout { grid-template-columns: 1fr; } }
+
+.cal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+
+/* Header */
+.cal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.cal-month-label { font-size: 18px; font-weight: 700; color: var(--text); }
+.cal-nav { display: flex; gap: 8px; }
+.cal-nav-btn { width: 34px; height: 34px; border-radius: var(--radius-sm); background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; transition: var(--transition); text-decoration: none; }
+.cal-nav-btn:hover { background: var(--surface3); color: var(--text); }
+
+/* Day-of-week header */
+.cal-dow { display: grid; grid-template-columns: repeat(7, 1fr); }
+.cal-dow-cell { padding: 8px 4px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); background: var(--bg2); border-bottom: 1px solid var(--border); }
+.cal-dow-cell.weekend { color: var(--danger); opacity: 0.7; }
+
+/* Grid */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+
+.cal-day {
+    min-height: 80px;
+    padding: 6px 8px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+}
+.cal-day:hover { background: var(--surface2); }
+.cal-day.other-month { opacity: 0.3; pointer-events: none; }
+.cal-day.today { background: var(--accent-glow2); }
+.cal-day.today .cal-day-num { background: var(--accent); color: #fff; }
+.cal-day.weekend { background: rgba(255,255,255,0.01); }
+.cal-day.weekend .cal-day-num { color: var(--danger); opacity: 0.7; }
+.cal-day:nth-child(7n) { border-right: none; }
+
+.cal-day-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    font-size: 12px; font-weight: 600;
+    color: var(--text2);
+    margin-bottom: 4px;
+}
+
+.cal-day-tag {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 10px; font-weight: 600;
+    padding: 2px 6px; border-radius: 10px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 100%;
+    margin-top: 2px;
+}
+
+/* Legend */
+.cal-legend { display: flex; gap: 14px; flex-wrap: wrap; padding: 10px 20px; border-top: 1px solid var(--border); background: var(--bg2); }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text3); font-weight: 500; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* Side Panel */
+.cal-side { display: flex; flex-direction: column; gap: 16px; }
+
+.cal-year-list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.cal-year-list-header { padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 700; }
+.year-list-body { max-height: 460px; overflow-y: auto; }
+.year-list-item { display: flex; align-items: flex-start; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--border); transition: background 0.15s; }
+.year-list-item:last-child { border-bottom: none; }
+.year-list-item:hover { background: var(--surface2); }
+.yli-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.yli-body { flex: 1; min-width: 0; }
+.yli-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.yli-date { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.yli-type { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 10px; }
+.yli-del { opacity: 0; transition: opacity 0.15s; background: transparent; color: var(--danger); font-size: 16px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
+.year-list-item:hover .yli-del { opacity: 1; }
+.yli-del:hover { background: var(--danger-bg); }
+
+/* Quick-add tip */
+.cal-tip { padding: 10px 18px; font-size: 11px; color: var(--text3); background: var(--bg2); border-top: 1px solid var(--border); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="cal-layout">
+
+    <!-- ── Calendar Card ── -->
+    <div class="cal-card">
+        <!-- Header -->
+        <div class="cal-header">
+            <div class="cal-month-label">{{ month_name }} {{ year }}</div>
+            <div class="cal-nav">
+                <a href="{{ url_for('admin.calendar_view', year=prev_year, month=prev_month) }}"
+                   class="cal-nav-btn" title="Previous month">&#8592;</a>
+                <a href="{{ url_for('admin.calendar_view', year=today.year, month=today.month) }}"
+                   class="cal-nav-btn" title="Today" style="font-size:12px; font-weight:700;">TODAY</a>
+                <a href="{{ url_for('admin.calendar_view', year=next_year, month=next_month) }}"
+                   class="cal-nav-btn" title="Next month">&#8594;</a>
+            </div>
+        </div>
+
+        <!-- Day-of-week labels -->
+        <div class="cal-dow">
+            {% for dow in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+            <div class="cal-dow-cell {% if dow == 'Sun' %}weekend{% endif %}">{{ dow }}</div>
+            {% endfor %}
+        </div>
+
+        <!-- Grid -->
+        <div class="cal-grid" id="calGrid">
+            {% for week in month_weeks %}
+                {% for d in week %}
+                    {% set tagged = tagged_map.get(d) %}
+                    {% set is_cur_month = (d.month == month) %}
+                    {% set is_today = (d == today) %}
+                    {% set is_weekend = (d.weekday() == 6) %}
+                    <div class="cal-day
+                        {% if not is_cur_month %}other-month{% endif %}
+                        {% if is_today %}today{% endif %}
+                        {% if is_weekend %}weekend{% endif %}"
+                         onclick="openDayModal('{{ d.strftime('%Y-%m-%d') }}', '{{ d.strftime('%d %b %Y') }}',
+                                  '{{ tagged.name if tagged else '' }}',
+                                  '{{ tagged.day_type if tagged else 'Holiday' }}',
+                                  '{{ tagged.description if tagged else '' }}',
+                                  {{ tagged.id if tagged else 'null' }})"
+                         data-date="{{ d.strftime('%Y-%m-%d') }}"
+                         id="calday-{{ d.strftime('%Y-%m-%d') }}">
+                        <div class="cal-day-num">{{ d.day }}</div>
+                        {% if tagged %}
+                        <div class="cal-day-tag"
+                             id="tag-{{ d.strftime('%Y-%m-%d') }}"
+                             style="background: {{ tagged.display_color() }}22; color: {{ tagged.display_color() }}; border: 1px solid {{ tagged.display_color() }}44;">
+                            {{ tagged.emoji() }} {{ tagged.name[:14] }}
+                        </div>
+                        {% else %}
+                        <div class="cal-day-tag" id="tag-{{ d.strftime('%Y-%m-%d') }}" style="display:none"></div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+
+        <!-- Legend -->
+        <div class="cal-legend">
+            {% for dt, color in day_type_colors.items() %}
+            <div class="legend-item">
+                <div class="legend-dot" style="background:{{ color }}"></div>
+                {{ dt }}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="cal-tip">💡 Click any date to tag it as Holiday, Half Day, WFH, etc.</div>
+    </div>
+
+    <!-- ── Side Panel ── -->
+    <div class="cal-side">
+        <div class="cal-year-list">
+            <div class="cal-year-list-header">
+                📅 {{ year }} — All Tagged Days
+                <span class="text-muted" style="font-weight:400; font-size:11px;">({{ year_tagged|length }})</span>
+            </div>
+            <div class="year-list-body" id="yearListBody">
+                {% if year_tagged %}
+                    {% for h in year_tagged %}
+                    <div class="year-list-item" id="yli-{{ h.id }}">
+                        <div class="yli-dot" style="background:{{ h.display_color() }}"></div>
+                        <div class="yli-body">
+                            <div class="yli-name">{{ h.name }}</div>
+                            <div class="yli-date">{{ h.date.strftime('%d %b %Y (%a)') }}</div>
+                        </div>
+                        <span class="yli-type" style="background:{{ h.display_color() }}22; color:{{ h.display_color() }}">{{ h.day_type }}</span>
+                        <button class="yli-del" onclick="deleteEntry({{ h.id }}, event)" title="Remove">×</button>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div style="padding: 24px 18px; text-align: center; color: var(--text3); font-size: 13px;">
+                    No days tagged for {{ year }} yet.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Day Tag Modal ── -->
+<div class="modal-overlay" id="dayModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="dayModalTitle">Tag Date</h3>
+            <button class="modal-close" onclick="hideModal('dayModal')">×</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="modalDate">
+            <input type="hidden" id="modalEntryId">
+
+            <div class="form-group">
+                <label class="form-label">Day Type</label>
+                <div class="type-selector" id="typeSelector">
+                    {% for dt, color in day_type_colors.items() %}
+                    <button type="button" class="type-btn" data-type="{{ dt }}" data-color="{{ color }}"
+                            onclick="selectType('{{ dt }}')"
+                            style="--t-color: {{ color }}">
+                        {{ {'Holiday':'🔴','Half Day':'🟡','WFH':'🔵','Optional Holiday':'🟣'}.get(dt,'📅') }}
+                        {{ dt }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Name / Title</label>
+                <input type="text" id="modalName" class="form-input"
+                       placeholder="e.g. Independence Day, WFH Friday">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Notes (optional)</label>
+                <input type="text" id="modalDesc" class="form-input"
+                       placeholder="Any additional details">
+            </div>
+
+            <div class="modal-footer">
+                <div style="flex:1">
+                    <button class="btn btn-ghost btn-sm" id="clearDayBtn" onclick="clearDay()" style="color:var(--danger)">
+                        Remove Tag
+                    </button>
+                </div>
+                <button type="button" class="btn btn-ghost" onclick="hideModal('dayModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveDay()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+.type-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.type-btn {
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    background: var(--surface2); border: 2px solid var(--border2);
+    color: var(--text2); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; text-align: left;
+}
+.type-btn:hover { border-color: var(--t-color); color: var(--t-color); background: color-mix(in srgb, var(--t-color) 10%, transparent); }
+.type-btn.selected { border-color: var(--t-color); color: var(--t-color); background: color-mix(in srgb, var(--t-color) 15%, transparent); }
+</style>
+<script>
+const DAY_TYPE_COLORS = {{ day_type_colors | tojson }};
+let selectedType = 'Holiday';
+let currentEntryId = null;
+
+function selectType(type) {
+    selectedType = type;
+    document.querySelectorAll('.type-btn').forEach(b => {
+        b.classList.toggle('selected', b.dataset.type === type);
+    });
+}
+
+function openDayModal(dateStr, dateLabel, name, dayType, desc, entryId) {
+    document.getElementById('modalDate').value = dateStr;
+    document.getElementById('modalEntryId').value = entryId || '';
+    document.getElementById('dayModalTitle').textContent = 'Tag — ' + dateLabel;
+    document.getElementById('modalName').value = name || '';
+    document.getElementById('modalDesc').value = desc || '';
+    document.getElementById('clearDayBtn').style.display = entryId ? 'inline-flex' : 'none';
+    currentEntryId = entryId;
+    selectType(dayType || 'Holiday');
+    showModal('dayModal');
+    setTimeout(() => document.getElementById('modalName').focus(), 100);
+}
+
+async function saveDay() {
+    const date = document.getElementById('modalDate').value;
+    const name = document.getElementById('modalName').value.trim();
+    const desc = document.getElementById('modalDesc').value.trim();
+
+    if (!name) { showToast('Please enter a name for this day.', 'error'); return; }
+
+    const form = new FormData();
+    form.append('date', date);
+    form.append('name', name);
+    form.append('day_type', selectedType);
+    form.append('description', desc);
+
+    const res = await fetch('/admin/calendar/save', { method: 'POST', body: form });
+    const data = await res.json();
+
+    if (data.success) {
+        showToast(data.message, 'success');
+        hideModal('dayModal');
+        updateDayCell(date, data);
+        upsertYearListItem(data);
+    } else {
+        showToast(data.message, 'error');
+    }
+}
+
+async function clearDay() {
+    if (!currentEntryId) return;
+    const res = await fetch('/admin/calendar/delete/' + currentEntryId, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+        showToast(data.message, 'success');
+        hideModal('dayModal');
+        const date = document.getElementById('modalDate').value;
+        const tag = document.getElementById('tag-' + date);
+        if (tag) tag.style.display = 'none';
+        const yli = document.getElementById('yli-' + currentEntryId);
+        if (yli) yli.remove();
+    } else {
+        showToast(data.message, 'error');
+    }
+}
+
+async function deleteEntry(id, evt) {
+    evt.stopPropagation();
+    const res = await fetch('/admin/calendar/delete/' + id, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+        showToast(data.message, 'success');
+        const yli = document.getElementById('yli-' + id);
+        if (yli) {
+            const date = yli.querySelector('.yli-date')?.textContent;
+            yli.remove();
+        }
+        // also clear the cell tag if visible
+        document.querySelectorAll('[data-date]').forEach(cell => {
+            // we'll just reload after delete for simplicity
+        });
+    } else {
+        showToast(data.message, 'error');
+    }
+}
+
+function updateDayCell(date, data) {
+    const tag = document.getElementById('tag-' + date);
+    const color = data.color;
+    if (tag) {
+        tag.style.display = 'inline-flex';
+        tag.style.background = color + '22';
+        tag.style.color = color;
+        tag.style.border = '1px solid ' + color + '44';
+        tag.textContent = data.emoji + ' ' + data.name.substring(0, 14);
+    }
+}
+
+function upsertYearListItem(data) {
+    const body = document.getElementById('yearListBody');
+    const existing = document.getElementById('yli-' + data.id);
+    const color = data.color;
+    const html = `
+        <div class="year-list-item" id="yli-${data.id}">
+            <div class="yli-dot" style="background:${color}"></div>
+            <div class="yli-body">
+                <div class="yli-name">${data.name}</div>
+                <div class="yli-date">${data.date}</div>
+            </div>
+            <span class="yli-type" style="background:${color}22; color:${color}">${data.day_type}</span>
+            <button class="yli-del" onclick="deleteEntry(${data.id}, event)" title="Remove">×</button>
+        </div>`;
+    if (existing) {
+        existing.outerHTML = html;
+    } else {
+        // Insert sorted by date — simplest: prepend and let natural sort happen
+        const noItems = body.querySelector('[style*="No days"]');
+        if (noItems) noItems.remove();
+        body.insertAdjacentHTML('beforeend', html);
+    }
+}
+
+// Pre-select today's type if any
+selectType('Holiday');
+</script>
+{% endblock %}

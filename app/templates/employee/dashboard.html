@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Relay{% endblock %}
+{% block page_title %}
+    <span>Good {% if now.hour < 12 %}Morning{% elif now.hour < 17 %}Afternoon{% else %}Evening{% endif %}, {{ current_user.full_name.split()[0] }} 👋</span>
+{% endblock %}
+
+{% block content %}
+{% set now_hour = now.hour if now is defined else 0 %}
+
+{% if today_holiday %}
+<div class="card" style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff; padding: 14px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+    <span style="font-size: 1.5rem;">🌴</span>
+    <div>
+        <div style="font-weight: 700; font-size: 1.05rem;">Today is a Company Holiday: {{ today_holiday.name }}</div>
+        {% if today_holiday.description %}<div style="font-size: 0.85rem; color: #c084fc;">{{ today_holiday.description }}</div>{% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="dashboard-grid">
+
+    <!-- ── Attendance Card ─────────────────────────────── -->
+    <div class="card attendance-card">
+        <div class="card-header">
+            <h2 class="card-title">Today's Attendance</h2>
+            <span class="date-badge">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -1px; display: inline-block;">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                {{ today.strftime('%d %b %Y') }}
+            </span>
+        </div>
+
+        <div class="attendance-body">
+            <!-- Status Badge -->
+            <div class="attendance-status-row">
+                {% if attendance %}
+                    <span class="status-badge status-{{ attendance.status_color() }}">
+                        {{ attendance.status }}
+                    </span>
+                {% else %}
+                    <span class="status-badge status-muted">Not Checked In</span>
+                {% endif %}
+            </div>
+
+            <!-- Time Display -->
+            <div class="time-display-row">
+                <div class="time-block">
+                    <div class="time-label">Check In</div>
+                    <div class="time-value" id="checkinDisplay">
+                        {{ attendance.check_in_ist() if attendance and attendance.check_in else '--:--' }}
+                    </div>
+                </div>
+                <div class="time-divider">→</div>
+                <div class="time-block">
+                    <div class="time-label">Check Out</div>
+                    <div class="time-value" id="checkoutDisplay">
+                        {{ attendance.check_out_ist() if attendance and attendance.check_out else '--:--' }}
+                    </div>
+                </div>
+                {% if attendance and attendance.check_in and attendance.check_out %}
+                <div class="time-divider">·</div>
+                <div class="time-block">
+                    <div class="time-label">Duration</div>
+                    <div class="time-value">{{ attendance.duration() }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="attendance-actions">
+                {% if not attendance or not attendance.check_in %}
+                    <!-- Not checked in yet -->
+                    {% if is_checkin_locked %}
+                        <div class="attendance-locked-msg" style="display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--danger); text-align: center; width: 100%; padding: 12px; border: 1px dashed rgba(239, 68, 68, 0.2); border-radius: var(--radius-sm); background: var(--danger-bg);">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.8;">
+                                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                            <span style="font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Check-in is locked</span>
+                            <span style="font-size: 12px; color: var(--text2);">Self-check-in disabled after {{ last_entry_time }}. Contact your administrator.</span>
+                        </div>
+                    {% else %}
+                        <button class="btn btn-checkin btn-large" id="checkinBtn" onclick="doCheckIn()">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 11 12 14 22 4"/>
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                            </svg>
+                            Check In
+                        </button>
+                    {% endif %}
+                {% elif attendance.check_in and not attendance.check_out %}
+                    <!-- Checked in, not out -->
+                    <div class="checkin-active">
+                        <div class="pulse-dot"></div>
+                        <span>Active since {{ attendance.check_in_ist() }}</span>
+                    </div>
+                    <button class="btn btn-checkout btn-large" id="checkoutBtn" onclick="doCheckOut()">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                            <polyline points="16 17 21 12 16 7"/>
+                            <line x1="21" y1="12" x2="9" y2="12"/>
+                        </svg>
+                        Check Out
+                    </button>
+                {% else %}
+                    <!-- All done -->
+                    <div class="attendance-complete">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Attendance complete for today
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Worksheet Card ──────────────────────────────── -->
+    <div class="card worksheet-card">
+        <div class="card-header">
+            <h2 class="card-title">Today's Worksheet</h2>
+            <div class="worksheet-meta">
+                {% if is_locked %}
+                    <span class="lock-badge locked">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        Locked
+                    </span>
+                {% else %}
+                    <span class="lock-badge unlocked">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                        </svg>
+                        Open until {{ lock_time }}
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="worksheet-body">
+            {% if is_locked %}
+                {% if worksheet and worksheet.is_submitted() %}
+                    <!-- Locked but submitted — show read-only -->
+                    <div class="worksheet-readonly">
+                        <div class="readonly-label">Submitted at {{ worksheet.submitted_at.strftime('%H:%M') if worksheet.submitted_at else '' }}</div>
+                        <div class="worksheet-content-view">{{ worksheet.content }}</div>
+                    </div>
+                    <div class="worksheet-status submitted">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        Submitted
+                    </div>
+                {% else %}
+                    <!-- Locked, not submitted -->
+                    <div class="worksheet-locked-msg">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        <p>Worksheet is locked</p>
+                        <span>Contact your admin to unlock</span>
+                    </div>
+                {% endif %}
+            {% else %}
+                <!-- Editable -->
+                <div class="save-indicator" id="saveIndicator"></div>
+                <textarea
+                    id="worksheetContent"
+                    class="worksheet-textarea"
+                    placeholder="Write your work for today...&#10;&#10;Example:&#10;- Completed the login page UI&#10;- Fixed backend API issue&#10;- Reviewed pull requests"
+                    rows="8"
+                >{{ worksheet.content if worksheet and worksheet.content else '' }}</textarea>
+                <div class="worksheet-footer">
+                    <span class="char-count" id="charCount">0 characters</span>
+                    <button class="btn btn-primary" id="saveWorksheetBtn" onclick="saveWorksheet()">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        Save
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<!-- Quick Stats Row -->
+<div class="quick-stats">
+    <div class="stat-mini">
+        <span class="stat-mini-label">Today</span>
+        <span class="stat-mini-val">{{ today.strftime('%A') }}</span>
+    </div>
+    <div class="stat-mini">
+        <span class="stat-mini-label">Status</span>
+        <span class="stat-mini-val status-text-{{ attendance.status_color() if attendance else 'muted' }}">
+            {{ attendance.status if attendance else 'Not marked' }}
+        </span>
+    </div>
+    <div class="stat-mini">
+        <span class="stat-mini-label">Worksheet</span>
+        <span class="stat-mini-val status-text-{{ 'success' if worksheet and worksheet.is_submitted() else 'danger' }}">
+            {{ 'Submitted' if worksheet and worksheet.is_submitted() else 'Pending' }}
+        </span>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Passing Python vars to JS
+    const hasCheckedIn = {{ 'true' if attendance and attendance.check_in else 'false' }};
+    const hasCheckedOut = {{ 'true' if attendance and attendance.check_out else 'false' }};
+
+    // Character count for worksheet
+    const textarea = document.getElementById('worksheetContent');
+    if (textarea) {
+        const counter = document.getElementById('charCount');
+        function updateCount() {
+            counter.textContent = textarea.value.length + ' characters';
+        }
+        textarea.addEventListener('input', updateCount);
+        updateCount();
+    }
+
+    async function doCheckIn() {
+        const btn = document.getElementById('checkinBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Checking in...';
+        try {
+            const res = await fetch('/employee/checkin', { method: 'POST', headers: { 'X-CSRFToken': '' } });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, 'success');
+                setTimeout(() => location.reload(), 1200);
+            } else {
+                showToast(data.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> Check In';
+            }
+        } catch(e) {
+            showToast('Network error. Try again.', 'error');
+            btn.disabled = false;
+        }
+    }
+
+    async function doCheckOut() {
+        const btn = document.getElementById('checkoutBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Checking out...';
+        try {
+            const res = await fetch('/employee/checkout', { method: 'POST', headers: { 'X-CSRFToken': '' } });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, 'success');
+                setTimeout(() => location.reload(), 1200);
+            } else {
+                showToast(data.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Check Out';
+            }
+        } catch(e) {
+            showToast('Network error. Try again.', 'error');
+            btn.disabled = false;
+        }
+    }
+
+    async function saveWorksheet() {
+        const btn = document.getElementById('saveWorksheetBtn');
+        const content = document.getElementById('worksheetContent').value;
+        const indicator = document.getElementById('saveIndicator');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Saving...';
+        indicator.textContent = '';
+
+        const form = new FormData();
+        form.append('content', content);
+
+        try {
+            const res = await fetch('/employee/worksheet', { method: 'POST', body: form });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Worksheet saved!', 'success');
+                indicator.textContent = '✓ Saved';
+                indicator.className = 'save-indicator saved';
+            } else {
+                showToast(data.message, 'error');
+            }
+        } catch(e) {
+            showToast('Failed to save. Try again.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
+        }
+    }
+</script>
+{% endblock %}
