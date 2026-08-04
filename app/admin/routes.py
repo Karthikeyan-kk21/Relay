@@ -605,20 +605,17 @@ def sheet():
             is_before_joining = d_date < emp_join_date
             is_company_halfday = holiday and holiday.day_type == "Half Day"
 
+            check_in = ""
+            check_out = ""
+
             if d_info["is_weekend"]:
                 status = "OFF"
-                check_in = ""
-                check_out = ""
                 emp_row["weekend_count"] += 1
             elif holiday and holiday.day_type == "Holiday":
                 status = "Holiday"
-                check_in = ""
-                check_out = ""
                 emp_row["holiday_count"] += 1
             elif is_before_joining:
                 status = "--"
-                check_in = ""
-                check_out = ""
             elif att:
                 emp_working_days += 1
                 status = att.status
@@ -646,8 +643,6 @@ def sheet():
             else:
                 if is_company_halfday:
                     status = "Half Day"
-                    check_in = ""
-                    check_out = ""
                     if d_date <= today:
                         emp_working_days += 1
                         emp_row["halfday_count"] += 1
@@ -658,8 +653,7 @@ def sheet():
                     emp_row["absent_count"] += 1
                 else:
                     status = "--"
-                    check_in = ""
-                    check_out = ""
+
 
 
 
