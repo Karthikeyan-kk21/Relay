@@ -11,6 +11,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.Text, nullable=False)
     role = db.Column(db.String(20), default="user")
     active = db.Column(db.Boolean, default=True)
+    section = db.Column(db.String(20), default="Section 2", nullable=False)
 
     created_at = db.Column(db.DateTime, server_default=db.func.now())
-    joining_date = db.Column(db.Date, nullable=True)
+    joining_date = db.Column(db.Date, nullable=True)

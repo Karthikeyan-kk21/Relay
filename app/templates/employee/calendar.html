@@ -80,13 +80,24 @@
     <!-- ── Calendar ── -->
     <div class="cal-card">
         <div class="cal-header">
-            <div class="cal-month-label">{{ month_name }} {{ year }}</div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <select id="empCalMonth" onchange="jumpEmpCalendar()" class="form-input" style="width: 140px; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); font-weight: 700; font-size: 15px; padding: 6px 12px; outline: none; cursor: pointer;">
+                    {% for m_num in range(1, 13) %}
+                        {% set m_names = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] %}
+                        <option value="{{ m_num }}" {% if m_num == month %}selected{% endif %}>{{ m_names[m_num] }}</option>
+                    {% endfor %}
+                </select>
+                <select id="empCalYear" onchange="jumpEmpCalendar()" class="form-input" style="width: 100px; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); font-weight: 700; font-size: 15px; padding: 6px 12px; outline: none; cursor: pointer;">
+                    {% for y_num in range(today.year - 3, today.year + 4) %}
+                        <option value="{{ y_num }}" {% if y_num == year %}selected{% endif %}>{{ y_num }}</option>
+                    {% endfor %}
+                </select>
+            </div>
             <div class="cal-nav">
-                <a href="{{ url_for('employee.calendar', year=prev_year, month=prev_month) }}" class="cal-nav-btn">&#8592;</a>
-                <a href="{{ url_for('employee.calendar', year=today.year, month=today.month) }}" class="cal-nav-btn" style="font-size:11px;font-weight:700;">TODAY</a>
-                <a href="{{ url_for('employee.calendar', year=next_year, month=next_month) }}" class="cal-nav-btn">&#8594;</a>
+                <a href="{{ url_for('employee.calendar', year=today.year, month=today.month) }}" class="cal-nav-btn" style="font-size:11px;font-weight:700; width:60px;">TODAY</a>
             </div>
         </div>
+
 
         <!-- DOW header -->
         <div class="cal-dow">
@@ -162,3 +173,14 @@
 </div>
 
 {% endblock %}
+
+{% block scripts %}
+<script>
+function jumpEmpCalendar() {
+    const m = document.getElementById('empCalMonth').value;
+    const y = document.getElementById('empCalYear').value;
+    window.location.href = "{{ url_for('employee.calendar') }}?year=" + y + "&month=" + m;
+}
+</script>
+{% endblock %}
+

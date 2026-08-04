@@ -2,7 +2,8 @@ import os
 from datetime import datetime
 from flask import current_app
 from app.extensions import db, mail
-from app.models import Setting, User, Attendance
+from app.models import Setting, User, Attendance, Worksheet, Holiday
+
 from app.ai.gemini import generate_ceo_report
 from flask_mail import Message
 import pytz
@@ -120,7 +121,39 @@ def compile_daily_report_job(app):
                     print(f"[{datetime.now(IST)}] Daily report emailed successfully to {', '.join(recipient_emails)}.")
                 except Exception as e:
                     print(f"[{datetime.now(IST)}] Failed to send automated report email: {str(e)}")
-            else:
-                print(f"[{datetime.now(IST)}] Skipping email: No active admin emails found in DB.")
         else:
             print(f"[{datetime.now(IST)}] Skipping email: SMTP credentials not configured.")
+
+
+def daily_db_backup_job(app):
+    """Background task to create a daily database backup snapshot in backups/ folder."""
+    with app.app_context():
+        today_str = datetime.now(IST).strftime("%Y%m%d_%H%M%S")
+        backups_dir = os.path.join(os.path.dirname(app.root_path), "backups")
+        os.makedirs(backups_dir, exist_ok=True)
+
+        db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        if "sqlite" in db_uri:
+            import shutil
+            db_path = os.path.abspath(os.path.join(app.root_path, "..", "dev_relay.db"))
+            if not os.path.exists(db_path):
+                db_path = os.path.abspath(os.path.join(app.root_path, "..", "relay.db"))
+            if os.path.exists(db_path):
+                backup_target = os.path.join(backups_dir, f"relay_backup_{today_str}.db")
+                shutil.copy2(db_path, backup_target)
+                print(f"[{datetime.now(IST)}] Daily automated SQLite backup saved to {backup_target}")
+                return
+
+        # General JSON backup snapshot
+        import json
+        backup_data = {
+            "timestamp": today_str,
+            "users": [{"id": u.id, "employee_id": u.employee_id, "name": u.full_name, "email": u.email, "role": u.role, "section": u.section, "active": u.active, "joining_date": str(u.joining_date)} for u in User.query.all()],
+            "attendance": [{"id": a.id, "user_id": a.user_id, "date": str(a.date), "status": a.status, "check_in": str(a.check_in), "check_out": str(a.check_out), "ip_address": a.ip_address} for a in Attendance.query.all()],
+            "worksheets": [{"id": w.id, "user_id": w.user_id, "date": str(w.date), "content": w.content, "is_locked": w.is_locked} for w in Worksheet.query.all()],
+        }
+        json_path = os.path.join(backups_dir, f"relay_backup_{today_str}.json")
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(backup_data, f, indent=2)
+        print(f"[{datetime.now(IST)}] Daily automated JSON backup saved to {json_path}")
+

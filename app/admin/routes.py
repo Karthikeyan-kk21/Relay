@@ -1,15 +1,31 @@
+import calendar
+import csv
+from datetime import datetime, date, timedelta
 from functools import wraps
-from flask import render_template, redirect, url_for, flash, request, jsonify, abort
+import io
+import json
+import os
+import pytz
+
+from flask import (
+    render_template, redirect, url_for, flash, request, jsonify, abort,
+    Response, send_file, current_app
+)
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
-import pytz
-from datetime import datetime, date
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 
 from app.admin import admin_bp
 from app.extensions import db
 from app.models import User, Attendance, Worksheet, Setting, Holiday
 
 IST = pytz.timezone("Asia/Kolkata")
+
 
 
 def get_ist_now():
@@ -78,9 +94,14 @@ def dashboard():
     prev_date = selected_date - timedelta(days=1)
     next_date = selected_date + timedelta(days=1)
 
+    sec1_items = [e for e in emp_data if e["user"].section == "Section 1"]
+    sec2_items = [e for e in emp_data if e["user"].section != "Section 1"]
+
     return render_template(
         "admin/dashboard.html",
         emp_data=emp_data,
+        sec1_items=sec1_items,
+        sec2_items=sec2_items,
         summary=summary,
         today=selected_date,
         prev_date_str=prev_date.strftime("%Y-%m-%d"),
@@ -88,6 +109,7 @@ def dashboard():
         selected_date_str=selected_date.strftime("%Y-%m-%d"),
         is_today=(selected_date == get_ist_today()),
     )
+
 
 
 # ─── Mark WFH / HD ────────────────────────────────────────────────────────────
@@ -166,7 +188,10 @@ def lock_worksheet(user_id):
 @admin_required
 def users():
     all_users = User.query.filter_by(role="user").order_by(User.created_at.desc()).all()
-    return render_template("admin/users.html", users=all_users)
+    sec1_users = [u for u in all_users if u.section == "Section 1"]
+    sec2_users = [u for u in all_users if u.section != "Section 1"]
+    return render_template("admin/users.html", users=all_users, sec1_users=sec1_users, sec2_users=sec2_users)
+
 
 
 @admin_bp.route("/users/create", methods=["POST"])
@@ -198,6 +223,7 @@ def create_user():
         except ValueError:
             pass
 
+    section = request.form.get("section", "Section 2").strip()
     user = User(
         employee_id=employee_id,
         full_name=full_name,
@@ -206,6 +232,7 @@ def create_user():
         role="user",
         active=True,
         joining_date=joining_dt,
+        section=section,
     )
     db.session.add(user)
     db.session.commit()
@@ -221,11 +248,14 @@ def update_user(user_id):
     full_name = request.form.get("full_name", "").strip()
     email = request.form.get("email", "").strip()
     joining_date_str = request.form.get("joining_date", "").strip()
+    section = request.form.get("section", "").strip()
 
     if full_name:
         user.full_name = full_name
     if email:
         user.email = email
+    if section:
+        user.section = section
     if joining_date_str:
         try:
             user.joining_date = datetime.strptime(joining_date_str, "%Y-%m-%d").date()
@@ -234,6 +264,7 @@ def update_user(user_id):
 
     db.session.commit()
     return jsonify({"success": True, "message": "Employee details updated successfully."})
+
 
 
 @admin_bp.route("/users/toggle/<int:user_id>", methods=["POST"])
@@ -258,6 +289,64 @@ def reset_password(user_id):
     user.password_hash = generate_password_hash(new_password)
     db.session.commit()
     return jsonify({"success": True, "message": "Password reset successfully."})
+
+
+@admin_bp.route("/users/delete/<int:user_id>", methods=["POST"])
+@login_required
+@admin_required
+def delete_user(user_id):
+    """Safely delete employee and their attendance/worksheet history."""
+    if current_user.id == user_id:
+        return jsonify({"success": False, "message": "You cannot delete your logged-in admin account."}), 400
+    user = User.query.get_or_404(user_id)
+    emp_name = user.full_name
+    Attendance.query.filter_by(user_id=user.id).delete()
+    Worksheet.query.filter_by(user_id=user.id).delete()
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({"success": True, "message": f"Employee '{emp_name}' deleted successfully."})
+
+
+@admin_bp.route("/backup/download")
+@login_required
+@admin_required
+def download_backup():
+    """Generate and download a complete database backup."""
+    import os, io, json
+    from flask import send_file, current_app
+
+    today_str = get_ist_today().strftime("%Y%m%d_%H%M%S")
+    db_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+
+    if "sqlite" in db_uri:
+        db_path = os.path.abspath(os.path.join(current_app.root_path, "..", "dev_relay.db"))
+        if not os.path.exists(db_path):
+            db_path = os.path.abspath(os.path.join(current_app.root_path, "..", "relay.db"))
+        if os.path.exists(db_path):
+            return send_file(
+                db_path,
+                as_attachment=True,
+                download_name=f"Relay_DB_Backup_{today_str}.db",
+                mimetype="application/x-sqlite3"
+            )
+
+    # General JSON backup snapshot for cloud or PostgreSQL
+    backup_data = {
+        "timestamp": today_str,
+        "users": [{"id": u.id, "employee_id": u.employee_id, "name": u.full_name, "email": u.email, "role": u.role, "section": u.section, "active": u.active, "joining_date": str(u.joining_date)} for u in User.query.all()],
+        "attendance": [{"id": a.id, "user_id": a.user_id, "date": str(a.date), "status": a.status, "check_in": str(a.check_in), "check_out": str(a.check_out), "ip_address": a.ip_address} for a in Attendance.query.all()],
+        "worksheets": [{"id": w.id, "user_id": w.user_id, "date": str(w.date), "content": w.content, "is_locked": w.is_locked} for w in Worksheet.query.all()],
+        "holidays": [{"id": h.id, "date": str(h.date), "name": h.name, "day_type": h.day_type} for h in Holiday.query.all()]
+    }
+
+    mem = io.BytesIO(json.dumps(backup_data, indent=2).encode('utf-8'))
+    return send_file(
+        mem,
+        as_attachment=True,
+        download_name=f"Relay_DB_Backup_{today_str}.json",
+        mimetype="application/json"
+    )
+
 
 
 # ─── Settings ─────────────────────────────────────────────────────────────────
@@ -672,11 +761,16 @@ def sheet():
 
         matrix.append(emp_row)
 
+    sec1_matrix = [r for r in matrix if r["user"].section == "Section 1"]
+    sec2_matrix = [r for r in matrix if r["user"].section != "Section 1"]
+
     months_list = [(i, calendar.month_name[i]) for i in range(1, 13)]
 
     return render_template(
         "admin/attendance_sheet.html",
         matrix=matrix,
+        sec1_matrix=sec1_matrix,
+        sec2_matrix=sec2_matrix,
         days=days,
         year=year,
         month=month,
@@ -685,6 +779,426 @@ def sheet():
         working_days_count=working_days_count,
         today=today
     )
+
+
+
+# ─── Monthly Data Exports ───────────────────────────────────────────────────
+
+@admin_bp.route("/sheet/export-csv")
+@login_required
+@admin_required
+def export_sheet_csv():
+    """Export complete monthly attendance matrix to CSV."""
+    import calendar
+    from flask import Response
+    import io, csv
+
+    today = get_ist_today()
+    try:
+        year = int(request.args.get("year", today.year))
+        month = int(request.args.get("month", today.month))
+    except ValueError:
+        year, month = today.year, today.month
+
+    num_days = calendar.monthrange(year, month)[1]
+    weekend_policy = Setting.get("weekend_policy", "sunday_only")
+    start_date = date(year, month, 1)
+    end_date = date(year, month, num_days)
+
+    employees = User.query.filter_by(role="user", active=True).order_by(User.full_name).all()
+    all_attendance = Attendance.query.filter(Attendance.date >= start_date, Attendance.date <= end_date).all()
+    all_holidays = Holiday.query.filter(Holiday.date >= start_date, Holiday.date <= end_date).all()
+
+    att_map = {(att.user_id, att.date.day): att for att in all_attendance}
+    holiday_map = {h.date.day: h for h in all_holidays}
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header Row
+    headers = ["S.No", "Employee ID", "Employee Name", "Joining Date"]
+    for day_num in range(1, num_days + 1):
+        d = date(year, month, day_num)
+        headers.append(f"{d.strftime('%a %d')} Status")
+        headers.append(f"{d.strftime('%a %d')} In")
+        headers.append(f"{d.strftime('%a %d')} Out")
+
+    headers.extend(["Present Days", "Late Days", "WFH Days", "Half Days", "Absent Days", "Attendance %"])
+    writer.writerow(headers)
+
+    for idx, emp in enumerate(employees, start=1):
+        row = [idx, emp.employee_id, emp.full_name, emp.joining_date.strftime("%Y-%m-%d") if emp.joining_date else ""]
+        emp_working_days = 0
+        credits = 0.0
+        p_cnt, l_cnt, w_cnt, h_cnt, a_cnt = 0, 0, 0, 0, 0
+
+        for day_num in range(1, num_days + 1):
+            d = date(year, month, day_num)
+            is_sunday = d.weekday() == 6
+            is_saturday = d.weekday() == 5
+            is_weekend = is_sunday or (is_saturday and weekend_policy == "sat_sun")
+            att = att_map.get((emp.id, day_num))
+            h_entry = holiday_map.get(day_num)
+
+            status, cin, cout = "", "", ""
+            if is_weekend:
+                status = "OFF"
+            elif h_entry and h_entry.day_type == "Holiday":
+                status = "Holiday"
+            elif att:
+                status = att.status
+                cin = att.check_in_ist()
+                cout = att.check_out_ist()
+                emp_working_days += 1
+                if status in ("Present", "On Time"):
+                    p_cnt += 1; credits += 1.0
+                elif status == "Late":
+                    l_cnt += 1; credits += 1.0
+                elif status == "WFH":
+                    w_cnt += 1; credits += 1.0
+                elif status in ("Half Day", "HD"):
+                    h_cnt += 1
+                    credits += 1.0 if (h_entry and h_entry.day_type == "Half Day") else 0.5
+                elif status == "Absent":
+                    a_cnt += 1
+            else:
+                if h_entry and h_entry.day_type == "Half Day":
+                    status = "Half Day"
+                    if d <= today:
+                        emp_working_days += 1; h_cnt += 1; credits += 1.0
+                elif d <= today:
+                    status = "Absent"
+                    emp_working_days += 1; a_cnt += 1
+                else:
+                    status = "--"
+
+            row.extend([status, cin, cout])
+
+        pct = round((credits / emp_working_days * 100), 1) if emp_working_days > 0 else 0.0
+        row.extend([p_cnt, l_cnt, w_cnt, h_cnt, a_cnt, f"{pct}%"])
+        writer.writerow(row)
+
+    month_name = calendar.month_name[month]
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-disposition": f"attachment; filename=Relay_Attendance_Sheet_{month_name}_{year}.csv"}
+    )
+
+
+@admin_bp.route("/sheet/export-worksheets")
+@login_required
+@admin_required
+def export_worksheets_csv():
+    """Export daily worksheets for selected month to CSV."""
+    import calendar
+    from flask import Response
+    import io, csv
+
+    today = get_ist_today()
+    try:
+        year = int(request.args.get("year", today.year))
+        month = int(request.args.get("month", today.month))
+    except ValueError:
+        year, month = today.year, today.month
+
+    num_days = calendar.monthrange(year, month)[1]
+    start_date = date(year, month, 1)
+    end_date = date(year, month, num_days)
+
+    worksheets = (
+        Worksheet.query.filter(Worksheet.date >= start_date, Worksheet.date <= end_date)
+        .order_by(Worksheet.date.desc(), Worksheet.user_id)
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Date", "Employee ID", "Employee Name", "Check-In", "Check-Out", "Status", "Worksheet Content"])
+
+    for ws in worksheets:
+        user = ws.user
+        if not user or not user.active:
+            continue
+        att = Attendance.query.filter_by(user_id=user.id, date=ws.date).first()
+        cin = att.check_in_ist() if att else ""
+        cout = att.check_out_ist() if att else ""
+        st = att.status if att else ""
+        writer.writerow([
+            ws.date.strftime("%Y-%m-%d"),
+            user.employee_id,
+            user.full_name,
+            cin,
+            cout,
+            st,
+            ws.content.replace("\r", "") if ws.content else ""
+        ])
+
+    month_name = calendar.month_name[month]
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-disposition": f"attachment; filename=Relay_Worksheets_{month_name}_{year}.csv"}
+    )
+
+
+# ─── Individual Employee 360 Full History & Reports ──────────────────────────
+
+@admin_bp.route("/users/<int:user_id>/history")
+@login_required
+@admin_required
+def user_history(user_id):
+    """360 View & Full Career History Report for an individual employee."""
+    user = User.query.get_or_404(user_id)
+    today = get_ist_today()
+
+    start_date_str = request.args.get("start_date", "").strip()
+    end_date_str = request.args.get("end_date", "").strip()
+
+    default_start = user.joining_date or (user.created_at.date() if user.created_at else today)
+
+    try:
+        s_date = datetime.strptime(start_date_str, "%Y-%m-%d").date() if start_date_str else default_start
+    except ValueError:
+        s_date = default_start
+
+    try:
+        e_date = datetime.strptime(end_date_str, "%Y-%m-%d").date() if end_date_str else today
+    except ValueError:
+        e_date = today
+
+    # Query all attendance records for user in range
+    records = (
+        Attendance.query.filter(
+            Attendance.user_id == user.id,
+            Attendance.date >= s_date,
+            Attendance.date <= e_date
+        )
+        .order_by(Attendance.date.desc())
+        .all()
+    )
+
+    # Query worksheets map
+    worksheets = (
+        Worksheet.query.filter(
+            Worksheet.user_id == user.id,
+            Worksheet.date >= s_date,
+            Worksheet.date <= e_date
+        ).all()
+    )
+    ws_map = {ws.date: ws for ws in worksheets}
+
+    # Query Holidays map
+    holidays = Holiday.query.filter(Holiday.date >= s_date, Holiday.date <= e_date).all()
+    h_map = {h.date: h for h in holidays}
+
+    total_days = len(records)
+    present_cnt = sum(1 for r in records if r.status in ("Present", "On Time"))
+    late_cnt    = sum(1 for r in records if r.status == "Late")
+    wfh_cnt     = sum(1 for r in records if r.status == "WFH")
+    hd_cnt      = sum(1 for r in records if r.status in ("HD", "Half Day"))
+    absent_cnt  = sum(1 for r in records if r.status == "Absent")
+
+    credits = present_cnt + late_cnt + wfh_cnt + (hd_cnt * 0.5)
+    working_days = present_cnt + late_cnt + wfh_cnt + hd_cnt + absent_cnt
+    pct = round((credits / working_days * 100), 1) if working_days > 0 else 0.0
+
+    history_logs = []
+    for r in records:
+        ws = ws_map.get(r.date)
+        h_entry = h_map.get(r.date)
+        history_logs.append({
+            "attendance": r,
+            "worksheet": ws,
+            "holiday": h_entry,
+            "date": r.date,
+            "status": r.status,
+            "check_in": r.check_in_ist(),
+            "check_out": r.check_out_ist(),
+            "ip_address": r.ip_address or "--",
+            "content": ws.content if ws else ""
+        })
+
+    return render_template(
+        "admin/user_history.html",
+        user=user,
+        s_date=s_date,
+        e_date=e_date,
+        total_days=total_days,
+        present_cnt=present_cnt,
+        late_cnt=late_cnt,
+        wfh_cnt=wfh_cnt,
+        hd_cnt=hd_cnt,
+        absent_cnt=absent_cnt,
+        pct=pct,
+        logs=history_logs,
+        today=today
+    )
+
+
+@admin_bp.route("/users/<int:user_id>/export-csv")
+@login_required
+@admin_required
+def export_user_csv(user_id):
+    """Export individual employee history to CSV."""
+    from flask import Response
+    import io, csv
+
+    user = User.query.get_or_404(user_id)
+    today = get_ist_today()
+    default_start = user.joining_date or today
+
+    s_str = request.args.get("start_date", "").strip()
+    e_str = request.args.get("end_date", "").strip()
+
+    try: s_date = datetime.strptime(s_str, "%Y-%m-%d").date() if s_str else default_start
+    except ValueError: s_date = default_start
+
+    try: e_date = datetime.strptime(e_str, "%Y-%m-%d").date() if e_str else today
+    except ValueError: e_date = today
+
+    records = (
+        Attendance.query.filter(Attendance.user_id == user.id, Attendance.date >= s_date, Attendance.date <= e_date)
+        .order_by(Attendance.date.desc())
+        .all()
+    )
+    ws_map = {ws.date: ws for ws in Worksheet.query.filter(Worksheet.user_id == user.id, Worksheet.date >= s_date, Worksheet.date <= e_date).all()}
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([f"Employee Report for {user.full_name} ({user.employee_id})"])
+    writer.writerow([f"Joining Date: {user.joining_date}", f"Period: {s_date} to {e_date}"])
+    writer.writerow([])
+    writer.writerow(["Date", "Day", "Status", "Check-In", "Check-Out", "IP Address", "Worksheet Log"])
+
+    for r in records:
+        ws = ws_map.get(r.date)
+        writer.writerow([
+            r.date.strftime("%Y-%m-%d"),
+            r.date.strftime("%a"),
+            r.status,
+            r.check_in_ist(),
+            r.check_out_ist(),
+            r.ip_address or "",
+            ws.content.replace("\r", "") if ws and ws.content else ""
+        ])
+
+    filename = f"Relay_Report_{user.employee_id}_{s_date.strftime('%Y%m%d')}_to_{e_date.strftime('%Y%m%d')}.csv"
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-disposition": f"attachment; filename={filename}"}
+    )
+
+
+@admin_bp.route("/users/<int:user_id>/export-pdf")
+@login_required
+@admin_required
+def export_user_pdf(user_id):
+    """Export individual employee history report to PDF using ReportLab."""
+    from flask import Response
+    import io
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.lib.units import cm
+
+    user = User.query.get_or_404(user_id)
+    today = get_ist_today()
+    default_start = user.joining_date or today
+
+    s_str = request.args.get("start_date", "").strip()
+    e_str = request.args.get("end_date", "").strip()
+
+    try: s_date = datetime.strptime(s_str, "%Y-%m-%d").date() if s_str else default_start
+    except ValueError: s_date = default_start
+
+    try: e_date = datetime.strptime(e_str, "%Y-%m-%d").date() if e_str else today
+    except ValueError: e_date = today
+
+    records = (
+        Attendance.query.filter(Attendance.user_id == user.id, Attendance.date >= s_date, Attendance.date <= e_date)
+        .order_by(Attendance.date.desc())
+        .all()
+    )
+    ws_map = {ws.date: ws for ws in Worksheet.query.filter(Worksheet.user_id == user.id, Worksheet.date >= s_date, Worksheet.date <= e_date).all()}
+
+    pdf_buffer = io.BytesIO()
+    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=18, textColor=colors.HexColor("#1e293b"), spaceAfter=6)
+    sub_style = ParagraphStyle("sub", parent=styles["Normal"], fontSize=10, textColor=colors.HexColor("#64748b"), spaceAfter=14)
+    cell_style = ParagraphStyle("cell", parent=styles["Normal"], fontSize=8, leading=10, textColor=colors.HexColor("#334155"))
+
+    story = []
+    story.append(Paragraph(f"Relay Employee Report — {user.full_name}", title_style))
+    story.append(Paragraph(f"Employee ID: {user.employee_id} | Email: {user.email} | Joining Date: {user.joining_date} | Period: {s_date.strftime('%d %b %Y')} to {e_date.strftime('%d %b %Y')}", sub_style))
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceAfter=12))
+
+    # Summary Table
+    p_cnt = sum(1 for r in records if r.status in ("Present", "On Time"))
+    l_cnt = sum(1 for r in records if r.status == "Late")
+    w_cnt = sum(1 for r in records if r.status == "WFH")
+    h_cnt = sum(1 for r in records if r.status in ("HD", "Half Day"))
+    a_cnt = sum(1 for r in records if r.status == "Absent")
+    w_days = p_cnt + l_cnt + w_cnt + h_cnt + a_cnt
+    pct = round(((p_cnt + l_cnt + w_cnt + h_cnt * 0.5) / w_days * 100), 1) if w_days > 0 else 0.0
+
+    summary_data = [
+        ["Total Days", "Present", "Late", "WFH", "Half Day", "Absent", "Attendance %"],
+        [str(len(records)), str(p_cnt), str(l_cnt), str(w_cnt), str(h_cnt), str(a_cnt), f"{pct}%"]
+    ]
+    t_summary = Table(summary_data, colWidths=[2.5*cm]*7)
+    t_summary.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#f1f5f9")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#1e293b")),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#e2e8f0")),
+    ]))
+    story.append(t_summary)
+    story.append(Spacer(1, 0.5*cm))
+
+    # Log Table
+    table_data = [["Date", "Status", "Check-In", "Check-Out", "Worksheet Content"]]
+    for r in records[:50]: # limit to top 50 rows for clean PDF size
+        ws = ws_map.get(r.date)
+        ws_text = (ws.content.replace('\n', ' ')[:100] + '...') if (ws and ws.content) else "--"
+        table_data.append([
+            r.date.strftime("%d/%m/%Y"),
+            r.status,
+            r.check_in_ist() or "--",
+            r.check_out_ist() or "--",
+            Paragraph(ws_text.replace('&', '&amp;').replace('<', '&lt;'), cell_style)
+        ])
+
+    t_logs = Table(table_data, colWidths=[2.5*cm, 2.0*cm, 2.2*cm, 2.2*cm, 9.1*cm])
+    t_logs.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1e293b")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
+    ]))
+    story.append(t_logs)
+
+    doc.build(story)
+    pdf_buffer.seek(0)
+
+    filename = f"Relay_Report_{user.employee_id}_{s_date.strftime('%Y%m%d')}.pdf"
+    return Response(
+        pdf_buffer.getvalue(),
+        mimetype="application/pdf",
+        headers={"Content-disposition": f"attachment; filename={filename}"}
+    )
+
 
 
 # ─── Company Calendar Management ─────────────────────────────────────────────

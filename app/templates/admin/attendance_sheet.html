@@ -164,95 +164,202 @@
             <span>Viewing records for {{ month_name }} {{ year }} ({{ working_days_count }} Working Days)</span>
         </div>
 
-        <form method="GET" action="{{ url_for('admin.sheet') }}" class="sheet-filters">
-            <select name="month" class="sheet-select" onchange="this.form.submit()">
-                {% for m_num, m_name in months_list %}
-                    <option value="{{ m_num }}" {% if m_num == month %}selected{% endif %}>{{ m_name }}</option>
-                {% endfor %}
-            </select>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <form method="GET" action="{{ url_for('admin.sheet') }}" class="sheet-filters">
+                <select name="month" class="sheet-select" onchange="this.form.submit()">
+                    {% for m_num, m_name in months_list %}
+                        <option value="{{ m_num }}" {% if m_num == month %}selected{% endif %}>{{ m_name }}</option>
+                    {% endfor %}
+                </select>
 
-            <select name="year" class="sheet-select" onchange="this.form.submit()">
-                {% for y in range(2025, 2028) %}
-                    <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
-                {% endfor %}
-            </select>
-        </form>
+                <select name="year" class="sheet-select" onchange="this.form.submit()">
+                    {% for y in range(2024, 2028) %}
+                        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            <a href="{{ url_for('admin.export_sheet_csv', year=year, month=month) }}" class="btn btn-ghost btn-sm" style="display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border2); text-decoration: none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Attendance CSV
+            </a>
+
+            <a href="{{ url_for('admin.export_worksheets_csv', year=year, month=month) }}" class="btn btn-ghost btn-sm" style="display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border2); text-decoration: none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+                Worksheets CSV
+            </a>
+        </div>
     </div>
 
-    <!-- Attendance Grid Table -->
-    <div class="table-wrapper">
-        <table class="sheet-table">
-            <thead>
-                <tr>
-                    <th class="sticky-col-sno">S.No</th>
-                    <th class="sticky-col-name">Name</th>
-                    {% for d in days %}
-                        <th class="{% if d.is_weekend %}weekend{% endif %}">
-                            {{ d.weekday }}<br>{{ d.day }}
-                        </th>
-                    {% endfor %}
-                    <th class="summary-col">Present Days</th>
-                    <th class="summary-col">Half Days</th>
-                    <th class="summary-col">Absent Days</th>
-                    <th class="summary-col">Holidays</th>
-                    <th class="summary-col">Weekend Days</th>
-                    <th class="summary-col">Attendance %</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in matrix %}
+
+    <!-- Section 1 Table -->
+    <div style="margin-bottom: 24px;">
+        <div style="background: var(--surface2); padding: 10px 16px; border-radius: 8px 8px 0 0; border: 1px solid var(--border); font-weight: 800; font-size: 14px; color: var(--accent); display: flex; align-items: center; justify-content: space-between;">
+            <span>📌 Management & Team Leads</span>
+            <span class="text-muted" style="font-size: 12px; font-weight: 500;">{{ sec1_matrix|length }} members</span>
+        </div>
+        <div class="table-wrapper" style="border-top-left-radius: 0; border-top-right-radius: 0;">
+            <table class="sheet-table">
+                <thead>
                     <tr>
-                        <td class="sticky-col-sno">{{ row.s_no }}</td>
-                        <td class="sticky-col-name">{{ row.user.full_name }}</td>
-                        
+                        <th class="sticky-col-sno">S.No</th>
+                        <th class="sticky-col-name">Name</th>
                         {% for d in days %}
-                            {% set cell = row.days[d.day] %}
-                            <td class="day-cell {% if d.is_weekend %}weekend{% endif %}">
-                                {% if cell.status == 'Present' or cell.status == 'On Time' %}
-                                    <span class="status-badge badge-present">P</span>
-                                {% elif cell.status == 'Late' %}
-                                    <span class="status-badge badge-late">P (Late)</span>
-                                {% elif cell.status == 'WFH' %}
-                                    <span class="status-badge badge-wfh">WFH</span>
-                                {% elif cell.status == 'Half Day' %}
-                                    <span class="status-badge badge-halfday">HD</span>
-                                {% elif cell.status == 'Holiday' %}
-                                    <span class="status-badge badge-holiday" title="{{ cell.holiday_name }}">🌴 H</span>
-                                {% elif cell.status == 'Absent' %}
-                                    <span class="status-badge badge-absent">A</span>
-                                {% elif cell.status == 'OFF' %}
-                                    <span class="status-badge badge-off">OFF</span>
-                                {% else %}
-                                    <span style="color: #475569;">--</span>
-                                {% endif %}
-
-                                {% if cell.check_in %}
-                                    <span class="time-label">In: {{ cell.check_in }}</span>
-                                {% endif %}
-                                {% if cell.check_out %}
-                                    <span class="time-label">Out: {{ cell.check_out }}</span>
-                                {% endif %}
-                            </td>
+                            <th class="{% if d.is_weekend %}weekend{% endif %}">
+                                {{ d.weekday }}<br>{{ d.day }}
+                            </th>
                         {% endfor %}
+                        <th class="summary-col">Present</th>
+                        <th class="summary-col">Half Days</th>
+                        <th class="summary-col">Absent</th>
+                        <th class="summary-col">Holidays</th>
+                        <th class="summary-col">Weekends</th>
+                        <th class="summary-col">Attendance %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in sec1_matrix %}
+                        <tr>
+                            <td class="sticky-col-sno">{{ loop.index }}</td>
+                            <td class="sticky-col-name">{{ row.user.full_name }}</td>
+                            
+                            {% for d in days %}
+                                {% set cell = row.days[d.day] %}
+                                <td class="day-cell {% if d.is_weekend %}weekend{% endif %}">
+                                    {% if cell.status == 'Present' or cell.status == 'On Time' %}
+                                        <span class="status-badge badge-present">P</span>
+                                    {% elif cell.status == 'Late' %}
+                                        <span class="status-badge badge-late">P (Late)</span>
+                                    {% elif cell.status == 'WFH' %}
+                                        <span class="status-badge badge-wfh">WFH</span>
+                                    {% elif cell.status == 'Half Day' %}
+                                        <span class="status-badge badge-halfday">HD</span>
+                                    {% elif cell.status == 'Holiday' %}
+                                        <span class="status-badge badge-holiday" title="{{ cell.holiday_name }}">🌴 H</span>
+                                    {% elif cell.status == 'Absent' %}
+                                        <span class="status-badge badge-absent">A</span>
+                                    {% elif cell.status == 'OFF' %}
+                                        <span class="status-badge badge-off">OFF</span>
+                                    {% else %}
+                                        <span style="color: #475569;">--</span>
+                                    {% endif %}
 
-                        <td class="summary-col" style="color: #4ade80;">{{ row.present_count + row.late_count }}</td>
-                        <td class="summary-col" style="color: #facc15;">{{ row.halfday_count }}</td>
-                        <td class="summary-col" style="color: #f87171;">{{ row.absent_count }}</td>
-                        <td class="summary-col" style="color: #c084fc;">{{ row.holiday_count }}</td>
-                        <td class="summary-col" style="color: #94a3b8;">{{ row.weekend_count }}</td>
-                        <td class="summary-col">
-                            <span class="percentage-pill">{{ row.percentage }}%</span>
-                        </td>
-                    </tr>
-                {% else %}
+                                    {% if cell.check_in %}
+                                        <span class="time-label">In: {{ cell.check_in }}</span>
+                                    {% endif %}
+                                    {% if cell.check_out %}
+                                        <span class="time-label">Out: {{ cell.check_out }}</span>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+
+                            <td class="summary-col" style="color: #4ade80;">{{ row.present_count + row.late_count }}</td>
+                            <td class="summary-col" style="color: #facc15;">{{ row.halfday_count }}</td>
+                            <td class="summary-col" style="color: #f87171;">{{ row.absent_count }}</td>
+                            <td class="summary-col" style="color: #c084fc;">{{ row.holiday_count }}</td>
+                            <td class="summary-col" style="color: #94a3b8;">{{ row.weekend_count }}</td>
+                            <td class="summary-col">
+                                <span class="percentage-pill">{{ row.percentage }}%</span>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="{{ days|length + 8 }}" style="padding: 30px; color: #64748b;">
+                                No members in Management & Team Leads.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 2 Table -->
+    <div>
+        <div style="background: var(--surface2); padding: 10px 16px; border-radius: 8px 8px 0 0; border: 1px solid var(--border); font-weight: 800; font-size: 14px; color: var(--text); display: flex; align-items: center; justify-content: space-between;">
+            <span>👥 Employees & Staff</span>
+            <span class="text-muted" style="font-size: 12px; font-weight: 500;">{{ sec2_matrix|length }} members</span>
+        </div>
+
+        <div class="table-wrapper" style="border-top-left-radius: 0; border-top-right-radius: 0;">
+            <table class="sheet-table">
+                <thead>
                     <tr>
-                        <td colspan="{{ days|length + 8 }}" style="padding: 40px; color: #64748b;">
-                            No employee records found.
-                        </td>
+                        <th class="sticky-col-sno">S.No</th>
+                        <th class="sticky-col-name">Name</th>
+                        {% for d in days %}
+                            <th class="{% if d.is_weekend %}weekend{% endif %}">
+                                {{ d.weekday }}<br>{{ d.day }}
+                            </th>
+                        {% endfor %}
+                        <th class="summary-col">Present</th>
+                        <th class="summary-col">Half Days</th>
+                        <th class="summary-col">Absent</th>
+                        <th class="summary-col">Holidays</th>
+                        <th class="summary-col">Weekends</th>
+                        <th class="summary-col">Attendance %</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {% for row in sec2_matrix %}
+                        <tr>
+                            <td class="sticky-col-sno">{{ loop.index }}</td>
+                            <td class="sticky-col-name">{{ row.user.full_name }}</td>
+                            
+                            {% for d in days %}
+                                {% set cell = row.days[d.day] %}
+                                <td class="day-cell {% if d.is_weekend %}weekend{% endif %}">
+                                    {% if cell.status == 'Present' or cell.status == 'On Time' %}
+                                        <span class="status-badge badge-present">P</span>
+                                    {% elif cell.status == 'Late' %}
+                                        <span class="status-badge badge-late">P (Late)</span>
+                                    {% elif cell.status == 'WFH' %}
+                                        <span class="status-badge badge-wfh">WFH</span>
+                                    {% elif cell.status == 'Half Day' %}
+                                        <span class="status-badge badge-halfday">HD</span>
+                                    {% elif cell.status == 'Holiday' %}
+                                        <span class="status-badge badge-holiday" title="{{ cell.holiday_name }}">🌴 H</span>
+                                    {% elif cell.status == 'Absent' %}
+                                        <span class="status-badge badge-absent">A</span>
+                                    {% elif cell.status == 'OFF' %}
+                                        <span class="status-badge badge-off">OFF</span>
+                                    {% else %}
+                                        <span style="color: #475569;">--</span>
+                                    {% endif %}
+
+                                    {% if cell.check_in %}
+                                        <span class="time-label">In: {{ cell.check_in }}</span>
+                                    {% endif %}
+                                    {% if cell.check_out %}
+                                        <span class="time-label">Out: {{ cell.check_out }}</span>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+
+                            <td class="summary-col" style="color: #4ade80;">{{ row.present_count + row.late_count }}</td>
+                            <td class="summary-col" style="color: #facc15;">{{ row.halfday_count }}</td>
+                            <td class="summary-col" style="color: #f87171;">{{ row.absent_count }}</td>
+                            <td class="summary-col" style="color: #c084fc;">{{ row.holiday_count }}</td>
+                            <td class="summary-col" style="color: #94a3b8;">{{ row.weekend_count }}</td>
+                            <td class="summary-col">
+                                <span class="percentage-pill">{{ row.percentage }}%</span>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="{{ days|length + 8 }}" style="padding: 30px; color: #64748b;">
+                                No members in Section 2.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}
+

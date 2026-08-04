@@ -17,64 +17,167 @@
 <div class="card">
     <div class="card-header">
         <h2 class="card-title">All Employees</h2>
-        <span class="text-muted">{{ users|length }} total</span>
-    </div>
+        <span class="text-muted">{{ (sec1_users|length + sec2_users|length) }} total</span>
+    </div>    {% if sec1_users or sec2_users %}
+        <!-- Section 1 Table -->
+        <div style="margin-bottom: 30px;">
+            <div style="background: var(--surface2); padding: 10px 16px; border-radius: 8px 8px 0 0; border: 1px solid var(--border); font-weight: 800; font-size: 14px; color: var(--accent); display: flex; align-items: center; justify-content: space-between;">
+                <span>📌 Management & Team Leads</span>
 
-    {% if users %}
-    <div class="table-wrapper">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Employee ID</th>
-                    <th>Email</th>
-                    <th>Status</th>
-                    <th>Joined Date</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in users %}
-                <tr id="urow-{{ user.id }}">
-                    <td>
-                        <div class="emp-cell">
-                            <div class="emp-avatar">{{ user.full_name[0].upper() }}</div>
-                            {{ user.full_name }}
-                        </div>
-                    </td>
-                    <td class="font-mono">{{ user.employee_id }}</td>
-                    <td class="text-muted">{{ user.email }}</td>
-                    <td>
-                        {% if user.active %}
-                            <span class="status-badge status-success" id="ustatus-{{ user.id }}">Active</span>
+                <span class="text-muted" style="font-size: 12px; font-weight: 500;">{{ sec1_users|length }} members</span>
+            </div>
+            <div class="table-wrapper" style="border-top-left-radius: 0; border-top-right-radius: 0;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>S.No</th>
+                            <th>Name</th>
+                            <th>Employee ID</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Joined Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if sec1_users %}
+                            {% for user in sec1_users %}
+                            <tr id="urow-{{ user.id }}">
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <div class="emp-cell">
+                                        <div class="emp-avatar" style="background: linear-gradient(135deg, #38bdf8, #818cf8);">{{ user.full_name[0].upper() }}</div>
+                                        {{ user.full_name }}
+                                    </div>
+                                </td>
+                                <td class="font-mono">{{ user.employee_id }}</td>
+                                <td class="text-muted">{{ user.email }}</td>
+                                <td>
+                                    {% if user.active %}
+                                        <span class="status-badge status-success" id="ustatus-{{ user.id }}">Active</span>
+                                    {% else %}
+                                        <span class="status-badge status-muted" id="ustatus-{{ user.id }}">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted" id="ujoining-{{ user.id }}">
+                                    {{ user.joining_date.strftime('%d %b %Y') if user.joining_date else '—' }}
+                                </td>
+                                <td>
+                                    <div class="action-group">
+                                        <a href="{{ url_for('admin.user_history', user_id=user.id) }}" class="btn btn-ghost btn-xs" style="color: var(--accent); font-weight: 700; text-decoration: none;">
+                                            📊 360 History
+                                        </a>
+                                        <button class="btn btn-ghost btn-xs"
+                                                onclick="showEditModal({{ user.id }}, '{{ user.full_name }}', '{{ user.email }}', '{{ user.joining_date.strftime('%Y-%m-%d') if user.joining_date else '' }}', '{{ user.section }}')">
+                                            Edit
+                                        </button>
+                                        <button class="btn btn-ghost btn-xs"
+                                                onclick="toggleUser({{ user.id }}, '{{ user.full_name }}')"
+                                                id="toggleBtn-{{ user.id }}">
+                                            {{ 'Deactivate' if user.active else 'Activate' }}
+                                        </button>
+                                        <button class="btn btn-ghost btn-xs" onclick="showResetModal({{ user.id }}, '{{ user.full_name }}')">
+                                            Reset Password
+                                        </button>
+                                        <button class="btn btn-ghost btn-xs" onclick="deleteUser({{ user.id }}, '{{ user.full_name }}')" style="color: var(--danger);">
+                                            Delete
+                                        </button>
+                                    </div>
+
+                                </td>
+                            </tr>
+                            {% endfor %}
                         {% else %}
-                            <span class="status-badge status-muted" id="ustatus-{{ user.id }}">Inactive</span>
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 20px; color: var(--text3);">
+                                    No members in Section 1. Move members to Section 1 using Edit.
+                                </td>
+                            </tr>
                         {% endif %}
-                    </td>
-                    <td class="text-muted" id="ujoining-{{ user.id }}">
-                        {{ user.joining_date.strftime('%d %b %Y') if user.joining_date else (user.created_at.strftime('%d %b %Y') if user.created_at else '—') }}
-                    </td>
-                    <td>
-                        <div class="action-group">
-                            <button class="btn btn-ghost btn-xs"
-                                    onclick="showEditModal({{ user.id }}, '{{ user.full_name }}', '{{ user.email }}', '{{ user.joining_date.strftime('%Y-%m-%d') if user.joining_date else '' }}')">
-                                Edit
-                            </button>
-                            <button class="btn btn-ghost btn-xs"
-                                    onclick="toggleUser({{ user.id }}, '{{ user.full_name }}')"
-                                    id="toggleBtn-{{ user.id }}">
-                                {{ 'Deactivate' if user.active else 'Activate' }}
-                            </button>
-                            <button class="btn btn-ghost btn-xs" onclick="showResetModal({{ user.id }}, '{{ user.full_name }}')">
-                                Reset Password
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section 2 Table -->
+        <div>
+            <div style="background: var(--surface2); padding: 10px 16px; border-radius: 8px 8px 0 0; border: 1px solid var(--border); font-weight: 800; font-size: 14px; color: var(--text); display: flex; align-items: center; justify-content: space-between;">
+                <span>👥 Employees & Staff</span>
+                <span class="text-muted" style="font-size: 12px; font-weight: 500;">{{ sec2_users|length }} members</span>
+            </div>
+
+            <div class="table-wrapper" style="border-top-left-radius: 0; border-top-right-radius: 0;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>S.No</th>
+                            <th>Name</th>
+                            <th>Employee ID</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Joined Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if sec2_users %}
+                            {% for user in sec2_users %}
+                            <tr id="urow-{{ user.id }}">
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <div class="emp-cell">
+                                        <div class="emp-avatar">{{ user.full_name[0].upper() }}</div>
+                                        {{ user.full_name }}
+                                    </div>
+                                </td>
+                                <td class="font-mono">{{ user.employee_id }}</td>
+                                <td class="text-muted">{{ user.email }}</td>
+                                <td>
+                                    {% if user.active %}
+                                        <span class="status-badge status-success" id="ustatus-{{ user.id }}">Active</span>
+                                    {% else %}
+                                        <span class="status-badge status-muted" id="ustatus-{{ user.id }}">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted" id="ujoining-{{ user.id }}">
+                                    {{ user.joining_date.strftime('%d %b %Y') if user.joining_date else '—' }}
+                                </td>
+                                <td>
+                                    <div class="action-group">
+                                        <a href="{{ url_for('admin.user_history', user_id=user.id) }}" class="btn btn-ghost btn-xs" style="color: var(--accent); font-weight: 700; text-decoration: none;">
+                                            📊 360 History
+                                        </a>
+                                        <button class="btn btn-ghost btn-xs"
+                                                onclick="showEditModal({{ user.id }}, '{{ user.full_name }}', '{{ user.email }}', '{{ user.joining_date.strftime('%Y-%m-%d') if user.joining_date else '' }}', '{{ user.section }}')">
+                                            Edit
+                                        </button>
+                                        <button class="btn btn-ghost btn-xs"
+                                                onclick="toggleUser({{ user.id }}, '{{ user.full_name }}')"
+                                                id="toggleBtn-{{ user.id }}">
+                                            {{ 'Deactivate' if user.active else 'Activate' }}
+                                        </button>
+                                        <button class="btn btn-ghost btn-xs" onclick="showResetModal({{ user.id }}, '{{ user.full_name }}')">
+                                            Reset Password
+                                        </button>
+                                        <button class="btn btn-ghost btn-xs" onclick="deleteUser({{ user.id }}, '{{ user.full_name }}')" style="color: var(--danger);">
+                                            Delete
+                                        </button>
+                                    </div>
+
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 20px; color: var(--text3);">
+                                    No members in Section 2.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     {% else %}
     <div class="empty-state">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -89,10 +192,17 @@
 <div class="modal-overlay" id="createModal">
     <div class="modal">
         <div class="modal-header">
-            <h3>Add New Employee</h3>
+            <h3>Add New Member</h3>
             <button class="modal-close" onclick="hideModal('createModal')">×</button>
         </div>
         <form method="POST" action="{{ url_for('admin.create_user') }}" class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Assign Group / Role</label>
+                <select name="section" class="form-input" style="background: var(--bg2); color: var(--text);">
+                    <option value="Section 1">Management & Team Leads</option>
+                    <option value="Section 2" selected>General Employees & Staff</option>
+                </select>
+            </div>
             <div class="form-group">
                 <label class="form-label">Employee ID</label>
                 <input type="text" name="employee_id" class="form-input" placeholder="e.g. EMP001" required>
@@ -115,7 +225,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-ghost" onclick="hideModal('createModal')">Cancel</button>
-                <button type="submit" class="btn btn-primary">Create Employee</button>
+                <button type="submit" class="btn btn-primary">Create Member</button>
             </div>
         </form>
     </div>
@@ -125,10 +235,18 @@
 <div class="modal-overlay" id="editModal">
     <div class="modal">
         <div class="modal-header">
-            <h3>Edit Employee — <span id="editUserName"></span></h3>
+            <h3>Edit Member — <span id="editUserName"></span></h3>
             <button class="modal-close" onclick="hideModal('editModal')">×</button>
         </div>
         <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Assign Group / Role</label>
+                <select id="editSection" class="form-input" style="background: var(--bg2); color: var(--text);">
+                    <option value="Section 1">Management & Team Leads</option>
+                    <option value="Section 2">General Employees & Staff</option>
+                </select>
+            </div>
+
             <div class="form-group">
                 <label class="form-label">Full Name</label>
                 <input type="text" id="editFullName" class="form-input">
@@ -141,10 +259,10 @@
                 <label class="form-label">Joining Date</label>
                 <input type="date" id="editJoiningDate" class="form-input">
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-ghost" onclick="hideModal('editModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="doUpdateUser()">Save Changes</button>
-            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" onclick="hideModal('editModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveUserEdit()">Save Changes</button>
         </div>
     </div>
 </div>
@@ -159,12 +277,12 @@
         <div class="modal-body">
             <div class="form-group">
                 <label class="form-label">New Password</label>
-                <input type="password" id="newPassword" class="form-input" placeholder="Min 6 characters" minlength="6">
+                <input type="password" id="newPassword" class="form-input" placeholder="At least 6 characters" minlength="6">
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-ghost" onclick="hideModal('resetModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="doResetPassword()">Reset Password</button>
-            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" onclick="hideModal('resetModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveResetPassword()">Reset Password</button>
         </div>
     </div>
 </div>
@@ -173,68 +291,102 @@
 
 {% block scripts %}
 <script>
-    let resetUserId = null;
-    let editUserId = null;
+let editingUserId = null;
+let resetUserId = null;
 
-    function showEditModal(userId, name, email, joiningDate) {
-        editUserId = userId;
-        document.getElementById('editUserName').textContent = name;
-        document.getElementById('editFullName').value = name;
-        document.getElementById('editEmail').value = email;
-        document.getElementById('editJoiningDate').value = joiningDate;
-        showModal('editModal');
+function showEditModal(id, name, email, joiningDate, section) {
+    editingUserId = id;
+    document.getElementById('editUserName').textContent = name;
+    document.getElementById('editFullName').value = name;
+    document.getElementById('editEmail').value = email;
+    document.getElementById('editJoiningDate').value = joiningDate;
+    if (document.getElementById('editSection')) {
+        document.getElementById('editSection').value = section || 'Section 2';
     }
+    showModal('editModal');
+}
 
-    async function doUpdateUser() {
-        const form = new FormData();
-        form.append('full_name', document.getElementById('editFullName').value);
-        form.append('email', document.getElementById('editEmail').value);
-        form.append('joining_date', document.getElementById('editJoiningDate').value);
+function saveUserEdit() {
+    if (!editingUserId) return;
+    const name = document.getElementById('editFullName').value.trim();
+    const email = document.getElementById('editEmail').value.trim();
+    const joiningDate = document.getElementById('editJoiningDate').value;
+    const section = document.getElementById('editSection').value;
 
-        const res = await fetch('/admin/users/update/' + editUserId, { method: 'POST', body: form });
-        const data = await res.json();
-        showToast(data.message, data.success ? 'success' : 'error');
+    fetch(`/admin/users/update/${editingUserId}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({ full_name: name, email: email, joining_date: joiningDate, section: section })
+    })
+    .then(r => r.json())
+    .then(data => {
         if (data.success) {
             hideModal('editModal');
-            setTimeout(() => window.location.reload(), 800);
-        }
-    }
-
-    function showResetModal(userId, name) {
-        resetUserId = userId;
-        document.getElementById('resetUserName').textContent = name;
-        document.getElementById('newPassword').value = '';
-        showModal('resetModal');
-    }
-
-    async function doResetPassword() {
-        const pw = document.getElementById('newPassword').value;
-        if (!pw || pw.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
-        const form = new FormData();
-        form.append('new_password', pw);
-        const res = await fetch('/admin/users/reset-password/' + resetUserId, { method: 'POST', body: form });
-        const data = await res.json();
-        showToast(data.message, data.success ? 'success' : 'error');
-        if (data.success) hideModal('resetModal');
-    }
-
-    async function toggleUser(userId, name) {
-        const res = await fetch('/admin/users/toggle/' + userId, { method: 'POST' });
-        const data = await res.json();
-        if (data.success) {
-            showToast(data.message, 'success');
-            const badge = document.getElementById('ustatus-' + userId);
-            const btn = document.getElementById('toggleBtn-' + userId);
-            if (data.active) {
-                badge.textContent = 'Active'; badge.className = 'status-badge status-success';
-                btn.textContent = 'Deactivate';
-            } else {
-                badge.textContent = 'Inactive'; badge.className = 'status-badge status-muted';
-                btn.textContent = 'Activate';
-            }
+            window.location.reload();
         } else {
-            showToast(data.message, 'error');
+            alert(data.message || 'Error updating member.');
         }
+    });
+}
+
+function toggleUser(id, name) {
+    if (!confirm(`Are you sure you want to change activation status for ${name}?`)) return;
+    fetch(`/admin/users/toggle/${id}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Error updating status.');
+        }
+    });
+}
+
+function showResetModal(id, name) {
+    resetUserId = id;
+    document.getElementById('resetUserName').textContent = name;
+    document.getElementById('newPassword').value = '';
+    showModal('resetModal');
+}
+
+function saveResetPassword() {
+    if (!resetUserId) return;
+    const pw = document.getElementById('newPassword').value.trim();
+    if (!pw || pw.length < 6) {
+        alert('Password must be at least 6 characters.');
+        return;
     }
+    fetch(`/admin/users/reset-password/${resetUserId}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({ new_password: pw })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            hideModal('resetModal');
+            alert('Password reset successfully!');
+        } else {
+            alert(data.message || 'Error resetting password.');
+        }
+    });
+}
+function deleteUser(id, name) {
+    if (!confirm(`⚠️ ARE YOU SURE you want to PERMANENTLY delete "${name}"?\n\nThis will permanently remove their user account, check-in history, and worksheets. This action cannot be undone.`)) {
+        return;
+    }
+    fetch(`/admin/users/delete/${id}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert(data.message || 'Error deleting employee.');
+        }
+    });
+}
 </script>
 {% endblock %}
+
+

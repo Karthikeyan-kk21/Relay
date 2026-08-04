@@ -1,0 +1,64 @@
+{
+  "timestamp": "20260804_173251",
+  "users": [
+    {
+      "id": 1,
+      "employee_id": "ADMIN001",
+      "name": "Admin",
+      "email": "admin@relay.com",
+      "role": "admin",
+      "section": "Section 2",
+      "active": true,
+      "joining_date": "None"
+    },
+    {
+      "id": 2,
+      "employee_id": "EMP001",
+      "name": "Karthikeyan",
+      "email": "karthikeyan@test.com",
+      "role": "user",
+      "section": "Section 1",
+      "active": true,
+      "joining_date": "None"
+    },
+    {
+      "id": 3,
+      "employee_id": "EMP002",
+      "name": "karthik",
+      "email": "karthikishore21134@gmail.com",
+      "role": "user",
+      "section": "Section 2",
+      "active": true,
+      "joining_date": "2026-08-04"
+    }
+  ],
+  "attendance": [
+    {
+      "id": 1,
+      "user_id": 2,
+      "date": "2026-08-03",
+      "status": "Late",
+      "check_in": "2026-08-03 17:29:13.281362",
+      "check_out": "None",
+      "ip_address": "127.0.0.1"
+    },
+    {
+      "id": 2,
+      "user_id": 2,
+      "date": "2026-08-04",
+      "status": "Late",
+      "check_in": "2026-08-04 09:37:39.045018",
+      "check_out": "None",
+      "ip_address": "127.0.0.1"
+    }
+  ],
+  "worksheets": [
+    {
+      "id": 1,
+      "user_id": 2,
+      "date": "2026-08-03",
+      "content": "Updated the relay website. Mostly it will function without bugs. Lets test it tomorrow.",
+      "is_locked": false
+    }
+  ]
+}

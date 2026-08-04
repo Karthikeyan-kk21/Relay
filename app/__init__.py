@@ -138,7 +138,19 @@ def create_app():
                 minute=0,
                 replace_existing=True
             )
+            # Schedule daily database backup at 00:00 (12:00 AM Midnight) IST
+            from app.services.scheduler import daily_db_backup_job
+            scheduler.add_job(
+                id="daily_db_backup",
+                func=daily_db_backup_job,
+                args=[app],
+                trigger="cron",
+                hour=0,
+                minute=0,
+                replace_existing=True
+            )
             scheduler.start()
+
 
     # Register blueprints
     from app.auth import auth_bp

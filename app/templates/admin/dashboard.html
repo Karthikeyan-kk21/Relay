@@ -126,89 +126,183 @@
         </div>
     </div>
 
-    {% if emp_data %}
-    <div class="table-wrapper">
-        <table class="data-table" id="adminTable">
-            <thead>
-                <tr>
-                    <th>Employee</th>
-                    <th>ID</th>
-                    <th>Status</th>
-                    <th>Check In</th>
-                    <th>Check Out</th>
-                    <th>Worksheet</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in emp_data %}
-                <tr id="row-{{ item.user.id }}">
-                    <td>
-                        <div class="emp-cell">
-                            <div class="emp-avatar">{{ item.user.full_name[0].upper() }}</div>
-                            <span>{{ item.user.full_name }}</span>
-                        </div>
-                    </td>
-                    <td class="font-mono text-muted">{{ item.user.employee_id }}</td>
-                    <td>
-                        <span class="status-badge status-{{ item.attendance.status_color() if item.attendance else 'muted' }}"
-                              id="status-{{ item.user.id }}">
-                            {{ item.attendance.status if item.attendance else 'Absent' }}
-                        </span>
-                    </td>
-                    <td class="font-mono" id="checkin-{{ item.user.id }}">
-                        {{ item.attendance.check_in_ist() if item.attendance else '--:--' }}
-                    </td>
-                    <td class="font-mono" id="checkout-{{ item.user.id }}">
-                        {{ item.attendance.check_out_ist() if item.attendance else '--:--' }}
-                    </td>
-                    <td>
-                        {% if item.worksheet and item.worksheet.is_submitted() %}
-                            <span class="status-badge status-success">Updated</span>
+    {% if sec1_items or sec2_items %}
+        <!-- Section 1 Table -->
+        <div style="margin-bottom: 24px;">
+            <div style="background: var(--surface2); padding: 10px 16px; border-radius: 8px 8px 0 0; border: 1px solid var(--border); font-weight: 800; font-size: 14px; color: var(--accent); display: flex; align-items: center; justify-content: space-between;">
+                <span>📌 Management & Team Leads</span>
+                <span class="text-muted" style="font-size: 12px; font-weight: 500;">{{ sec1_items|length }} members</span>
+            </div>
+            <div class="table-wrapper" style="border-top-left-radius: 0; border-top-right-radius: 0;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>S.No</th>
+                            <th>Employee</th>
+                            <th>ID</th>
+                            <th>Status</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Worksheet</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if sec1_items %}
+                            {% for item in sec1_items %}
+                            <tr id="row-{{ item.user.id }}">
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <div class="emp-cell">
+                                        <div class="emp-avatar" style="background: linear-gradient(135deg, #38bdf8, #818cf8);">{{ item.user.full_name[0].upper() }}</div>
+                                        <span>{{ item.user.full_name }}</span>
+                                    </div>
+                                </td>
+                                <td class="font-mono text-muted">{{ item.user.employee_id }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ item.attendance.status_color() if item.attendance else 'muted' }}"
+                                          id="status-{{ item.user.id }}">
+                                        {{ item.attendance.status if item.attendance else 'Absent' }}
+                                    </span>
+                                </td>
+                                <td class="font-mono" id="checkin-{{ item.user.id }}">
+                                    {{ item.attendance.check_in_ist() if item.attendance else '--:--' }}
+                                </td>
+                                <td class="font-mono" id="checkout-{{ item.user.id }}">
+                                    {{ item.attendance.check_out_ist() if item.attendance else '--:--' }}
+                                </td>
+                                <td>
+                                    {% if item.worksheet and item.worksheet.is_submitted() %}
+                                        <span class="status-badge status-success">Updated</span>
+                                    {% else %}
+                                        <span class="status-badge status-danger">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="action-group" style="display: flex; gap: 4px; align-items: center;">
+                                        <div class="dropdown" id="dropdown-{{ item.user.id }}">
+                                            <button class="btn btn-ghost btn-xs" onclick="toggleDropdown({{ item.user.id }})">
+                                                Mark ▾
+                                            </button>
+                                            <div class="dropdown-menu" id="dmenu-{{ item.user.id }}">
+                                                <button onclick="markStatus({{ item.user.id }}, 'WFH')">WFH</button>
+                                                <button onclick="markStatus({{ item.user.id }}, 'Leave')">Leave</button>
+                                                <button onclick="markStatus({{ item.user.id }}, 'Present')">Present</button>
+                                                <button onclick="markStatus({{ item.user.id }}, 'Absent')">Absent</button>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-ghost btn-xs" onclick="openEditTimesModal({{ item.user.id }}, '{{ item.user.full_name }}', '{{ item.attendance.check_in_ist() if item.attendance and item.attendance.check_in else '' }}', '{{ item.attendance.check_out_ist() if item.attendance and item.attendance.check_out else '' }}')">✏️ Times</button>
+                                        {% if not item.attendance or not item.attendance.check_in %}
+                                            <button class="btn btn-ghost btn-xs" id="unlock-ci-btn-{{ item.user.id }}" onclick="unlockCheckin({{ item.user.id }})" {% if item.attendance and item.attendance.admin_unlocked %}disabled style="opacity: 0.5;"{% endif %}>🔓 CI</button>
+                                        {% endif %}
+                                        <button class="btn btn-ghost btn-xs" onclick="unlockWorksheet({{ item.user.id }})">🔓 WS</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
                         {% else %}
-                            <span class="status-badge status-danger">Pending</span>
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 20px; color: var(--text3);">
+                                    No members in Management & Team Leads.
+                                </td>
+                            </tr>
                         {% endif %}
-                    </td>
-                    <td>
-                        <div class="action-group" style="display: flex; gap: 4px; align-items: center;">
-                            <!-- Mark Status Dropdown -->
-                            <div class="dropdown" id="dropdown-{{ item.user.id }}">
-                                <button class="btn btn-ghost btn-xs" onclick="toggleDropdown({{ item.user.id }})">
-                                    Mark ▾
-                                </button>
-                                <div class="dropdown-menu" id="dmenu-{{ item.user.id }}">
-                                    <button onclick="markStatus({{ item.user.id }}, 'WFH')">WFH</button>
-                                    <button onclick="markStatus({{ item.user.id }}, 'Leave')">Leave</button>
-                                    <button onclick="markStatus({{ item.user.id }}, 'Present')">Present</button>
-                                    <button onclick="markStatus({{ item.user.id }}, 'Absent')">Absent</button>
-                                </div>
-                            </div>
-                            <!-- Edit Times Button -->
-                            <button class="btn btn-ghost btn-xs" onclick="openEditTimesModal({{ item.user.id }}, '{{ item.user.full_name }}', '{{ item.attendance.check_in_ist() if item.attendance and item.attendance.check_in else '' }}', '{{ item.attendance.check_out_ist() if item.attendance and item.attendance.check_out else '' }}')">✏️ Times</button>
-                            
-                            <!-- Unlock CI Button -->
-                            {% if not item.attendance or not item.attendance.check_in %}
-                                <button class="btn btn-ghost btn-xs" id="unlock-ci-btn-{{ item.user.id }}" onclick="unlockCheckin({{ item.user.id }})" {% if item.attendance and item.attendance.admin_unlocked %}disabled style="opacity: 0.5;"{% endif %}>🔓 CI</button>
-                            {% endif %}
-                            
-                            <!-- Worksheet Actions -->
-                            {% if item.worksheet and item.worksheet.is_locked %}
-                                <button class="btn btn-ghost btn-xs" onclick="unlockWorksheet({{ item.user.id }})">🔓 WS</button>
-                            {% else %}
-                                <button class="btn btn-ghost btn-xs" onclick="unlockWorksheet({{ item.user.id }})">🔓 WS</button>
-                            {% endif %}
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section 2 Table -->
+        <div>
+            <div style="background: var(--surface2); padding: 10px 16px; border-radius: 8px 8px 0 0; border: 1px solid var(--border); font-weight: 800; font-size: 14px; color: var(--text); display: flex; align-items: center; justify-content: space-between;">
+                <span>👥 Employees & Staff</span>
+                <span class="text-muted" style="font-size: 12px; font-weight: 500;">{{ sec2_items|length }} members</span>
+            </div>
+
+            <div class="table-wrapper" style="border-top-left-radius: 0; border-top-right-radius: 0;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>S.No</th>
+                            <th>Employee</th>
+                            <th>ID</th>
+                            <th>Status</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Worksheet</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if sec2_items %}
+                            {% for item in sec2_items %}
+                            <tr id="row-{{ item.user.id }}">
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <div class="emp-cell">
+                                        <div class="emp-avatar">{{ item.user.full_name[0].upper() }}</div>
+                                        <span>{{ item.user.full_name }}</span>
+                                    </div>
+                                </td>
+                                <td class="font-mono text-muted">{{ item.user.employee_id }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ item.attendance.status_color() if item.attendance else 'muted' }}"
+                                          id="status-{{ item.user.id }}">
+                                        {{ item.attendance.status if item.attendance else 'Absent' }}
+                                    </span>
+                                </td>
+                                <td class="font-mono" id="checkin-{{ item.user.id }}">
+                                    {{ item.attendance.check_in_ist() if item.attendance else '--:--' }}
+                                </td>
+                                <td class="font-mono" id="checkout-{{ item.user.id }}">
+                                    {{ item.attendance.check_out_ist() if item.attendance else '--:--' }}
+                                </td>
+                                <td>
+                                    {% if item.worksheet and item.worksheet.is_submitted() %}
+                                        <span class="status-badge status-success">Updated</span>
+                                    {% else %}
+                                        <span class="status-badge status-danger">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="action-group" style="display: flex; gap: 4px; align-items: center;">
+                                        <div class="dropdown" id="dropdown-{{ item.user.id }}">
+                                            <button class="btn btn-ghost btn-xs" onclick="toggleDropdown({{ item.user.id }})">
+                                                Mark ▾
+                                            </button>
+                                            <div class="dropdown-menu" id="dmenu-{{ item.user.id }}">
+                                                <button onclick="markStatus({{ item.user.id }}, 'WFH')">WFH</button>
+                                                <button onclick="markStatus({{ item.user.id }}, 'Leave')">Leave</button>
+                                                <button onclick="markStatus({{ item.user.id }}, 'Present')">Present</button>
+                                                <button onclick="markStatus({{ item.user.id }}, 'Absent')">Absent</button>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-ghost btn-xs" onclick="openEditTimesModal({{ item.user.id }}, '{{ item.user.full_name }}', '{{ item.attendance.check_in_ist() if item.attendance and item.attendance.check_in else '' }}', '{{ item.attendance.check_out_ist() if item.attendance and item.attendance.check_out else '' }}')">✏️ Times</button>
+                                        {% if not item.attendance or not item.attendance.check_in %}
+                                            <button class="btn btn-ghost btn-xs" id="unlock-ci-btn-{{ item.user.id }}" onclick="unlockCheckin({{ item.user.id }})" {% if item.attendance and item.attendance.admin_unlocked %}disabled style="opacity: 0.5;"{% endif %}>🔓 CI</button>
+                                        {% endif %}
+                                        <button class="btn btn-ghost btn-xs" onclick="unlockWorksheet({{ item.user.id }})">🔓 WS</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 20px; color: var(--text3);">
+                                    No members in Section 2.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     {% else %}
     <div class="empty-state">
         <p>No employees found. <a href="{{ url_for('admin.users') }}">Add employees →</a></p>
     </div>
     {% endif %}
+
 </div>
 
 <!-- Edit Times Modal -->

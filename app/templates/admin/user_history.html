@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+{% block title %}{{ user.full_name }} — 360 Employee Career Report{% endblock %}
+{% block page_title %}Employee 360 Career Report{% endblock %}
+
+{% block content %}
+<style>
+.user-report-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.profile-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.profile-main {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.profile-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), #6366f1);
+    color: white;
+    font-size: 22px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3);
+}
+
+.profile-info h2 {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text);
+    margin: 0 0 4px 0;
+}
+
+.profile-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text2);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.profile-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Stats Cards Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 14px;
+}
+
+.stat-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+}
+
+.stat-box .val {
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+
+.stat-box .lbl {
+    font-size: 12px;
+    color: var(--text3);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* Date Range Filter Card */
+.filter-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    text-align: left;
+}
+
+.history-table th, .history-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.history-table th {
+    background: var(--surface2);
+    color: var(--text2);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.history-table tr:hover td {
+    background: var(--surface2);
+}
+
+.ws-text {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.5;
+    max-height: 80px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    background: var(--bg2);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+}
+</style>
+
+<div class="user-report-container">
+
+    <!-- Profile Header Card -->
+    <div class="profile-card">
+        <div class="profile-main">
+            <div class="profile-avatar">{{ user.full_name[:1].upper() }}</div>
+            <div class="profile-info">
+                <h2>{{ user.full_name }}</h2>
+                <div class="profile-meta">
+                    <span>🆔 <strong>{{ user.employee_id }}</strong></span>
+                    <span>•</span>
+                    <span>✉️ {{ user.email }}</span>
+                    <span>•</span>
+                    <span>📅 Joined: <strong>{{ user.joining_date.strftime('%d %b %Y') if user.joining_date else 'N/A' }}</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-actions">
+            <a href="{{ url_for('admin.users') }}" class="btn btn-ghost" style="text-decoration: none;">← Back to Employees</a>
+            
+            <a href="{{ url_for('admin.export_user_csv', user_id=user.id, start_date=s_date, end_date=e_date) }}" class="btn btn-ghost" style="border: 1px solid var(--border2); text-decoration: none;">
+                📥 Download CSV
+            </a>
+
+            <a href="{{ url_for('admin.export_user_pdf', user_id=user.id, start_date=s_date, end_date=e_date) }}" class="btn btn-primary" style="text-decoration: none;">
+                📄 Download PDF Report
+            </a>
+        </div>
+    </div>
+
+    <!-- Career Stats Grid -->
+    <div class="stats-grid">
+        <div class="stat-box">
+            <div class="val" style="color: var(--text);">{{ total_days }}</div>
+            <div class="lbl">Total Days</div>
+        </div>
+        <div class="stat-box">
+            <div class="val" style="color: #4ade80;">{{ present_cnt }}</div>
+            <div class="lbl">Present</div>
+        </div>
+        <div class="stat-box">
+            <div class="val" style="color: #fb923c;">{{ late_cnt }}</div>
+            <div class="lbl">Late</div>
+        </div>
+        <div class="stat-box">
+            <div class="val" style="color: #60a5fa;">{{ wfh_cnt }}</div>
+            <div class="lbl">WFH</div>
+        </div>
+        <div class="stat-box">
+            <div class="val" style="color: #facc15;">{{ hd_cnt }}</div>
+            <div class="lbl">Half Day</div>
+        </div>
+        <div class="stat-box">
+            <div class="val" style="color: #f87171;">{{ absent_cnt }}</div>
+            <div class="lbl">Absent</div>
+        </div>
+        <div class="stat-box" style="background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.3);">
+            <div class="val" style="color: #818cf8;">{{ pct }}%</div>
+            <div class="lbl" style="color: #818cf8;">Attendance %</div>
+        </div>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="filter-card">
+        <div style="font-weight: 700; color: var(--text); font-size: 14px;">
+            Showing records from <span style="color: var(--accent);">{{ s_date.strftime('%d %b %Y') }}</span> to <span style="color: var(--accent);">{{ e_date.strftime('%d %b %Y') }}</span>
+        </div>
+
+        <form method="GET" action="{{ url_for('admin.user_history', user_id=user.id) }}" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input type="date" name="start_date" value="{{ s_date }}" class="form-input" style="width: 140px; background: var(--bg2); border: 1px solid var(--border2); color: var(--text); padding: 6px 10px; border-radius: 8px;">
+            <span style="color: var(--text3);">to</span>
+            <input type="date" name="end_date" value="{{ e_date }}" class="form-input" style="width: 140px; background: var(--bg2); border: 1px solid var(--border2); color: var(--text); padding: 6px 10px; border-radius: 8px;">
+            <button type="submit" class="btn btn-ghost btn-sm" style="border: 1px solid var(--border2);">Filter</button>
+            <a href="{{ url_for('admin.user_history', user_id=user.id) }}" class="btn btn-ghost btn-sm" style="color: var(--text3); text-decoration: none;">Reset All Time</a>
+        </form>
+    </div>
+
+    <!-- Chronological Log Table -->
+    <div class="card" style="padding: 0; overflow: hidden; border-radius: 14px; border: 1px solid var(--border);">
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th style="width: 120px;">Date</th>
+                    <th style="width: 100px;">Status</th>
+                    <th style="width: 110px;">Check In</th>
+                    <th style="width: 110px;">Check Out</th>
+                    <th style="width: 120px;">IP Address</th>
+                    <th>Worksheet Submitted</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if logs %}
+                    {% for item in logs %}
+                    <tr>
+                        <td>
+                            <div style="font-weight: 700; color: var(--text);">{{ item.date.strftime('%d %b %Y') }}</div>
+                            <div style="font-size: 11px; color: var(--text3);">{{ item.date.strftime('%A') }}</div>
+                        </td>
+                        <td>
+                            {% set st = item.status %}
+                            {% if st in ['Present', 'On Time'] %}
+                                <span class="badge badge-present">Present</span>
+                            {% elif st == 'Late' %}
+                                <span class="badge badge-late">Late</span>
+                            {% elif st == 'WFH' %}
+                                <span class="badge badge-wfh">WFH</span>
+                            {% elif st in ['Half Day', 'HD'] %}
+                                <span class="badge badge-halfday">Half Day</span>
+                            {% elif st == 'Absent' %}
+                                <span class="badge badge-absent">Absent</span>
+                            {% elif st == 'OFF' %}
+                                <span class="badge badge-off">OFF</span>
+                            {% elif st == 'Holiday' %}
+                                <span class="badge badge-holiday">Holiday</span>
+                            {% else %}
+                                <span class="badge badge-off">{{ st }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-size: 13px; font-weight: 600; color: var(--text);">{{ item.check_in if item.check_in else '--' }}</td>
+                        <td style="font-size: 13px; font-weight: 600; color: var(--text);">{{ item.check_out if item.check_out else '--' }}</td>
+                        <td style="font-size: 12px; color: var(--text3);">{{ item.ip_address }}</td>
+                        <td>
+                            {% if item.content %}
+                                <div class="ws-text">{{ item.content }}</div>
+                            {% else %}
+                                <span style="color: var(--text3); font-size: 12px;">(No worksheet submitted)</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px; color: var(--text3);">
+                            No attendance or worksheet records found for the selected date range.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+{% endblock %}
