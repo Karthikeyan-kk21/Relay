@@ -268,10 +268,12 @@
                         <td style="font-size: 13px; font-weight: 600; color: var(--text);">{{ item.check_out if item.check_out else '--' }}</td>
                         <td style="font-size: 12px; color: var(--text3);">{{ item.ip_address }}</td>
                         <td>
-                            {% if item.content %}
-                                <div class="ws-text">{{ item.content }}</div>
+                            {% if user.section == 'Section 1' %}
+                                <span style="color: var(--text3); font-size: 13px;">N/A</span>
+                            {% elif item.worksheet %}
+                                <div style="font-size: 13px; color: var(--text); background: var(--bg2); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border2); white-space: pre-wrap;">{{ item.worksheet }}</div>
                             {% else %}
-                                <span style="color: var(--text3); font-size: 12px;">(No worksheet submitted)</span>
+                                <span style="color: var(--text3); font-style: italic; font-size: 13px;">(No worksheet submitted)</span>
                             {% endif %}
                         </td>
                     </tr>

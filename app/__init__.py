@@ -36,6 +36,23 @@ def create_admin_cmd(employee_id, full_name, email, password):
     click.echo(f"[OK] Admin '{full_name}' created successfully. Login with ID: {employee_id}")
 
 
+@click.command("change-password")
+@click.argument("employee_id")
+@click.argument("new_password")
+@with_appcontext
+def change_password_cmd(employee_id, new_password):
+    """Change password for any account. Usage: flask change-password ADMIN001 newpassword123"""
+    from app.models import User
+    user = User.query.filter_by(employee_id=employee_id).first()
+    if not user:
+        click.echo(f"ERROR: User with Employee ID '{employee_id}' not found.")
+        return
+    user.password_hash = generate_password_hash(new_password)
+    db.session.commit()
+    click.echo(f"[OK] Password for '{user.full_name}' ({employee_id}) updated successfully.")
+
+
+
 @click.command("seed-settings")
 @with_appcontext
 def seed_settings_cmd():
@@ -194,6 +211,7 @@ def create_app():
 
     # Register CLI commands
     app.cli.add_command(create_admin_cmd)
+    app.cli.add_command(change_password_cmd)
     app.cli.add_command(seed_settings_cmd)
     app.cli.add_command(init_local_db_cmd)
 

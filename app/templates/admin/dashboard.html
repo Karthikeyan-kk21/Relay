@@ -172,11 +172,7 @@
                                     {{ item.attendance.check_out_ist() if item.attendance else '--:--' }}
                                 </td>
                                 <td>
-                                    {% if item.worksheet and item.worksheet.is_submitted() %}
-                                        <span class="status-badge status-success">Updated</span>
-                                    {% else %}
-                                        <span class="status-badge status-danger">Pending</span>
-                                    {% endif %}
+                                    <span class="status-badge status-muted" style="opacity: 0.6;">N/A</span>
                                 </td>
                                 <td>
                                     <div class="action-group" style="display: flex; gap: 4px; align-items: center;">
@@ -195,10 +191,10 @@
                                         {% if not item.attendance or not item.attendance.check_in %}
                                             <button class="btn btn-ghost btn-xs" id="unlock-ci-btn-{{ item.user.id }}" onclick="unlockCheckin({{ item.user.id }})" {% if item.attendance and item.attendance.admin_unlocked %}disabled style="opacity: 0.5;"{% endif %}>🔓 CI</button>
                                         {% endif %}
-                                        <button class="btn btn-ghost btn-xs" onclick="unlockWorksheet({{ item.user.id }})">🔓 WS</button>
                                     </div>
                                 </td>
                             </tr>
+
                             {% endfor %}
                         {% else %}
                             <tr>

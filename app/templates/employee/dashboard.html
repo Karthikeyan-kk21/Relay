@@ -118,7 +118,8 @@
         </div>
     </div>
 
-    <!-- ── Worksheet Card ──────────────────────────────── -->
+    <!-- ── Worksheet Card (Section 2 only) ──────────────────────────────── -->
+    {% if current_user.section != 'Section 1' %}
     <div class="card worksheet-card">
         <div class="card-header">
             <h2 class="card-title">Today's Worksheet</h2>
@@ -186,6 +187,7 @@
             {% endif %}
         </div>
     </div>
+    {% endif %}
 
 </div>
 
@@ -201,13 +203,16 @@
             {{ attendance.status if attendance else 'Not marked' }}
         </span>
     </div>
+    {% if current_user.section != 'Section 1' %}
     <div class="stat-mini">
         <span class="stat-mini-label">Worksheet</span>
         <span class="stat-mini-val status-text-{{ 'success' if worksheet and worksheet.is_submitted() else 'danger' }}">
             {{ 'Submitted' if worksheet and worksheet.is_submitted() else 'Pending' }}
         </span>
     </div>
+    {% endif %}
 </div>
+
 
 {% endblock %}
 

@@ -138,8 +138,32 @@
         </div>
 
 
+        <!-- Admin Security -->
+        <div class="settings-section">
+            <div class="settings-section-header" style="color: #38bdf8;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                Admin Security
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Change Admin Password</div>
+                    <div class="setting-desc">Update your admin login password (for {{ current_user.full_name }} — {{ current_user.employee_id }})</div>
+                </div>
+                <div class="setting-control" style="display: flex; flex-direction: column; gap: 8px;">
+                    <button type="button" class="btn btn-ghost" onclick="showResetModal({{ current_user.id }}, '{{ current_user.full_name }}')" style="border: 1px solid var(--border2); width: fit-content;">
+                        🔑 Change My Password
+                    </button>
+                    <div class="setting-hint">Can also reset password via CLI: <code>flask change-password {{ current_user.employee_id }} newpassword</code></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Database Backup & Health -->
         <div class="settings-section">
+
             <div class="settings-section-header" style="color: var(--accent);">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -241,4 +265,60 @@
     </form>
 </div>
 
+<!-- Reset Password Modal -->
+<div class="modal-overlay" id="resetModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Change Password — <span id="resetUserName"></span></h3>
+            <button class="modal-close" onclick="hideModal('resetModal')">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">New Password</label>
+                <input type="password" id="newPassword" class="form-input" placeholder="At least 6 characters" minlength="6">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" onclick="hideModal('resetModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveResetPassword()">Update Password</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+let resetUserId = null;
+
+function showResetModal(id, name) {
+    resetUserId = id;
+    document.getElementById('resetUserName').textContent = name;
+    document.getElementById('newPassword').value = '';
+    showModal('resetModal');
+}
+
+function saveResetPassword() {
+    if (!resetUserId) return;
+    const pw = document.getElementById('newPassword').value.trim();
+    if (!pw || pw.length < 6) {
+        alert('Password must be at least 6 characters.');
+        return;
+    }
+    fetch(`/admin/users/reset-password/${resetUserId}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({ new_password: pw })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            hideModal('resetModal');
+            alert('Admin password updated successfully!');
+        } else {
+            alert(data.message || 'Error updating password.');
+        }
+    });
+}
+</script>
+{% endblock %}
+
