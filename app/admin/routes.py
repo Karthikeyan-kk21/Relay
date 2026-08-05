@@ -82,12 +82,13 @@ def dashboard():
         "wfh": statuses.count("WFH"),
         "hd": statuses.count("HD") + statuses.count("Half Day"),
         "worksheet_updated": sum(
-            1 for e in emp_data if e["worksheet"] and e["worksheet"].is_submitted()
+            1 for e in emp_data if e["user"].section != "Section 1" and e["worksheet"] and e["worksheet"].is_submitted()
         ),
         "worksheet_pending": sum(
-            1 for e in emp_data if not e["worksheet"] or not e["worksheet"].is_submitted()
+            1 for e in emp_data if e["user"].section != "Section 1" and (not e["worksheet"] or not e["worksheet"].is_submitted())
         ),
     }
+
 
     # Calculate previous and next dates for navigation
     from datetime import timedelta

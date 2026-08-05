@@ -90,9 +90,10 @@
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
         </svg>
-        Generate CEO Report
+        Generate Report
     </a>
 </div>
+
 
 <!-- Employee Table -->
 <div class="card">
@@ -143,7 +144,6 @@
                             <th>Status</th>
                             <th>Check In</th>
                             <th>Check Out</th>
-                            <th>Worksheet</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -172,9 +172,6 @@
                                     {{ item.attendance.check_out_ist() if item.attendance else '--:--' }}
                                 </td>
                                 <td>
-                                    <span class="status-badge status-muted" style="opacity: 0.6;">N/A</span>
-                                </td>
-                                <td>
                                     <div class="action-group" style="display: flex; gap: 4px; align-items: center;">
                                         <div class="dropdown" id="dropdown-{{ item.user.id }}">
                                             <button class="btn btn-ghost btn-xs" onclick="toggleDropdown({{ item.user.id }})">
@@ -198,11 +195,12 @@
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="8" style="text-align: center; padding: 20px; color: var(--text3);">
+                                <td colspan="7" style="text-align: center; padding: 20px; color: var(--text3);">
                                     No members in Management & Team Leads.
                                 </td>
                             </tr>
                         {% endif %}
+
                     </tbody>
                 </table>
             </div>
@@ -334,8 +332,15 @@
         const menu = document.getElementById('dmenu-' + userId);
         const allMenus = document.querySelectorAll('.dropdown-menu');
         allMenus.forEach(m => { if (m !== menu) m.classList.remove('open'); });
+        
+        // Ensure menu always opens downwards cleanly into table area
+        menu.style.top = 'calc(100% + 4px)';
+        menu.style.bottom = 'auto';
+        
         menu.classList.toggle('open');
     }
+
+
 
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.dropdown')) {

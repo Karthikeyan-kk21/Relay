@@ -626,7 +626,12 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 textarea.form-input { resize: vertical; }
 
 /* ── Table ───────────────────────────────────────────────────── */
-.table-wrapper { overflow-x: auto; }
+.table-wrapper { 
+    overflow-x: auto; 
+    min-height: 240px;
+    position: relative;
+}
+
 
 .data-table {
     width: 100%;
@@ -689,22 +694,23 @@ textarea.form-input { resize: vertical; }
 }
 
 /* ── Dropdown ────────────────────────────────────────────────── */
-.dropdown { position: relative; }
+.dropdown { position: relative; z-index: 100; }
 
 .dropdown-menu {
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
-    background: var(--surface2);
+    background: var(--surface);
     border: 1px solid var(--border2);
     border-radius: var(--radius-sm);
-    min-width: 120px;
-    z-index: 200;
+    min-width: 130px;
+    z-index: 9999;
     display: none;
     flex-direction: column;
-    box-shadow: var(--shadow);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
     overflow: hidden;
 }
+
 
 .dropdown-menu.open { display: flex; }
 

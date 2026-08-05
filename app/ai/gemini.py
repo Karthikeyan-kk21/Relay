@@ -105,28 +105,16 @@ Required Output Format:
 
 Preserve names exactly as given. Make bullet points professional, clear, and concise."""
 
-        # Dynamically discover supported available models from API
-        candidate_models = []
-        try:
-            for m in genai.list_models():
-                if "generateContent" in getattr(m, "supported_generation_methods", []):
-                    candidate_models.append(m.name)
-        except Exception:
-            pass
-
-        # Fallbacks in order of preference
-        if not candidate_models:
-            candidate_models = [
-                "models/gemini-2.5-flash",
-                "models/gemini-2.0-flash",
-                "models/gemini-flash-latest",
-                "gemini-2.5-flash",
-                "gemini-2.0-flash",
-                "gemini-flash-latest",
-            ]
+        candidate_models = [
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-flash-latest",
+            "models/gemini-1.5-flash",
+        ]
 
         response = None
         last_err = None
+
 
         for model_name in candidate_models:
             try:
