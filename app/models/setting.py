@@ -11,9 +11,12 @@ class Setting(db.Model):
 
     @classmethod
     def get(cls, key, default=None):
-        """Get setting value by key."""
+        """Get setting value by key, returning default if missing or empty."""
         setting = cls.query.filter_by(key=key).first()
-        return setting.value if setting else default
+        if setting and setting.value is not None and setting.value.strip() != "":
+            return setting.value
+        return default
+
 
     @classmethod
     def set_value(cls, key, value):

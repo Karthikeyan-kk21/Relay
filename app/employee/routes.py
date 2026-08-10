@@ -20,6 +20,17 @@ def get_ist_today():
     return datetime.now(IST).date()
 
 
+def parse_time_parts(time_str, default_h=11, default_m=0):
+    """Safely parse HH:MM string without throwing ValueError."""
+    if not time_str or ":" not in str(time_str):
+        return default_h, default_m
+    try:
+        parts = str(time_str).strip().split(":")
+        return int(parts[0]), int(parts[1])
+    except Exception:
+        return default_h, default_m
+
+
 def is_worksheet_locked(worksheet):
     """Return True if worksheet is locked and not admin-unlocked."""
     if Setting.get("disable_timing_lock", "false") == "true":
@@ -28,7 +39,7 @@ def is_worksheet_locked(worksheet):
         return False
     now = get_ist_now()
     lock_time_str = Setting.get("worksheet_lock_time", "18:30")
-    lock_h, lock_m = map(int, lock_time_str.split(":"))
+    lock_h, lock_m = parse_time_parts(lock_time_str, 18, 30)
     time_passed = now.hour > lock_h or (now.hour == lock_h and now.minute >= lock_m)
     if time_passed:
         # Persist lock in DB if worksheet exists
@@ -66,10 +77,11 @@ def dashboard():
     is_checkin_locked = False
     if Setting.get("disable_timing_lock", "false") != "true" and (not attendance or not attendance.check_in):
         now = get_ist_now()
-        last_h, last_m = map(int, last_entry_time.split(":"))
+        last_h, last_m = parse_time_parts(last_entry_time, 11, 0)
         is_past_cut_off = now.hour > last_h or (now.hour == last_h and now.minute >= last_m)
         if is_past_cut_off:
             is_checkin_locked = not (attendance and attendance.admin_unlocked)
+
 
     return render_template(
         "employee/dashboard.html",
