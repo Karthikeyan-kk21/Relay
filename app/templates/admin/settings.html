@@ -128,14 +128,38 @@
                     <div class="setting-desc">Select which days are official company week-offs</div>
                 </div>
                 <div class="setting-control">
-                    <select name="weekend_policy" class="form-input" style="width: 220px; background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); padding: 6px 12px; outline: none;">
+                    <select name="weekend_policy" class="form-input" style="width: 250px; background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); padding: 6px 12px; outline: none;">
                         <option value="sunday_only" {% if settings.weekend_policy.value == 'sunday_only' %}selected{% endif %}>Sunday Only (Sundays OFF)</option>
+                        <option value="sat_half_sun_off" {% if settings.weekend_policy.value == 'sat_half_sun_off' %}selected{% endif %}>Saturday Half Day & Sunday OFF</option>
                         <option value="sat_sun" {% if settings.weekend_policy.value == 'sat_sun' %}selected{% endif %}>Saturday & Sunday (Both OFF)</option>
                     </select>
-                    <div class="setting-hint">Determines full off-days on the attendance tracker</div>
+                    <div class="setting-hint">Determines full/half off-days on the attendance tracker</div>
+                </div>
+            </div>
+
+            <!-- Saturday Specific Timings -->
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Saturday Timings (Half Day Rules)</div>
+                    <div class="setting-desc">Set specific Saturday check-in, cut-off, and work end times (10:00 AM - 1:00 PM)</div>
+                </div>
+                <div class="setting-control" style="display: flex; flex-direction: column; gap: 10px;">
+                    <div>
+                        <span style="font-size: 11px; color: var(--text3); display: block; margin-bottom: 2px;">On-Time Deadline (e.g. 10:00 AM)</span>
+                        <input type="time" name="sat_checkin_time" class="form-input form-input-time" value="{{ settings.sat_checkin_time.value if settings.sat_checkin_time else '10:00' }}">
+                    </div>
+                    <div>
+                        <span style="font-size: 11px; color: var(--text3); display: block; margin-bottom: 2px;">Last Entry Cut-off (e.g. 10:30 AM)</span>
+                        <input type="time" name="sat_last_entry_time" class="form-input form-input-time" value="{{ settings.sat_last_entry_time.value if settings.sat_last_entry_time else '10:30' }}">
+                    </div>
+                    <div>
+                        <span style="font-size: 11px; color: var(--text3); display: block; margin-bottom: 2px;">Work End / Lock Time (e.g. 1:00 PM)</span>
+                        <input type="time" name="sat_checkout_time" class="form-input form-input-time" value="{{ settings.sat_checkout_time.value if settings.sat_checkout_time else '13:00' }}">
+                    </div>
                 </div>
             </div>
         </div>
+
 
 
         <!-- Admin Security -->

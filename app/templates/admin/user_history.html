@@ -270,12 +270,22 @@
                         <td>
                             {% if user.section == 'Section 1' %}
                                 <span style="color: var(--text3); font-size: 13px;">N/A</span>
-                            {% elif item.worksheet %}
-                                <div style="font-size: 13px; color: var(--text); background: var(--bg2); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border2); white-space: pre-wrap;">{{ item.worksheet }}</div>
                             {% else %}
-                                <span style="color: var(--text3); font-style: italic; font-size: 13px;">(No worksheet submitted)</span>
+                                <div style="display: flex; flex-direction: column; gap: 6px;">
+                                    {% if item.worksheet %}
+                                        <div style="font-size: 13px; color: var(--text); background: var(--bg2); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border2); white-space: pre-wrap;">{{ item.worksheet }}</div>
+                                    {% else %}
+                                        <span style="color: var(--text3); font-style: italic; font-size: 13px;">(No worksheet submitted)</span>
+                                    {% endif %}
+                                    <div style="display: flex; gap: 8px; align-items: center;">
+                                        <button class="btn btn-ghost btn-xs" onclick="unlockHistoryWs({{ user.id }}, '{{ item.date.strftime('%Y-%m-%d') }}')" style="color: var(--warning); border: 1px solid var(--border2);">
+                                            🔓 Unlock WS
+                                        </button>
+                                    </div>
+                                </div>
                             {% endif %}
                         </td>
+
                     </tr>
                     {% endfor %}
                 {% else %}
@@ -291,3 +301,26 @@
 
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+    async function unlockHistoryWs(userId, dateStr) {
+        const form = new FormData();
+        form.append('user_id', userId);
+        form.append('date', dateStr);
+
+        try {
+            const res = await fetch('/admin/worksheet/unlock-date', { method: 'POST', body: form });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, 'success');
+            } else {
+                showToast(data.message || 'Failed to unlock worksheet.', 'error');
+            }
+        } catch(e) {
+            showToast('Network error. Try again.', 'error');
+        }
+    }
+</script>
+{% endblock %}
+

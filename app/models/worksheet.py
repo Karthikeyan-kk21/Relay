@@ -11,8 +11,11 @@ class Worksheet(db.Model):
     content = db.Column(db.Text, nullable=True)
     is_locked = db.Column(db.Boolean, default=False)
     admin_unlocked = db.Column(db.Boolean, default=False)
+    unlock_requested = db.Column(db.Boolean, default=False)
+    unlock_requested_at = db.Column(db.DateTime, nullable=True)
     submitted_at = db.Column(db.DateTime, nullable=True)
     updated_at = db.Column(db.DateTime, nullable=True)
+
 
     user = db.relationship("User", backref="worksheets")
 

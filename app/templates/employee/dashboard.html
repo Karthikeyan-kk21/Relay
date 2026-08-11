@@ -9,13 +9,22 @@
 
 {% if today_holiday %}
 <div class="card" style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff; padding: 14px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
-    <span style="font-size: 1.5rem;">🌴</span>
-    <div>
-        <div style="font-weight: 700; font-size: 1.05rem;">Today is a Company Holiday: {{ today_holiday.name }}</div>
-        {% if today_holiday.description %}<div style="font-size: 0.85rem; color: #c084fc;">{{ today_holiday.description }}</div>{% endif %}
-    </div>
+    {% if today_holiday.day_type == 'WFH' %}
+        <span style="font-size: 1.5rem;">🏠</span>
+        <div>
+            <div style="font-weight: 700; font-size: 1.05rem;">Today WFH</div>
+            {% if today_holiday.description %}<div style="font-size: 0.85rem; color: #c084fc;">{{ today_holiday.description }}</div>{% endif %}
+        </div>
+    {% else %}
+        <span style="font-size: 1.5rem;">🌴</span>
+        <div>
+            <div style="font-weight: 700; font-size: 1.05rem;">Today is a Company Holiday: {{ today_holiday.name }}</div>
+            {% if today_holiday.description %}<div style="font-size: 0.85rem; color: #c084fc;">{{ today_holiday.description }}</div>{% endif %}
+        </div>
+    {% endif %}
 </div>
 {% endif %}
+
 
 <div class="dashboard-grid">
 
@@ -121,57 +130,58 @@
     <!-- ── Worksheet Card (Section 2 only) ──────────────────────────────── -->
     {% if current_user.section != 'Section 1' %}
     <div class="card worksheet-card">
-        <div class="card-header">
-            <h2 class="card-title">Today's Worksheet</h2>
-            <div class="worksheet-meta">
-                {% if is_locked %}
-                    <span class="lock-badge locked">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                        </svg>
-                        Locked
-                    </span>
-                {% else %}
-                    <span class="lock-badge unlocked">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
-                        </svg>
-                        Open until {{ lock_time }}
-                    </span>
-                {% endif %}
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <h2 class="card-title">Worksheet Log</h2>
+            <div class="worksheet-meta" style="display: flex; align-items: center; gap: 10px;">
+                <input type="date" id="wsDatePicker" class="form-input form-input-date" 
+                       value="{{ today.strftime('%Y-%m-%d') }}" 
+                       max="{{ today.strftime('%Y-%m-%d') }}"
+                       onchange="changeWorksheetDate()"
+                       style="padding: 4px 8px; font-size: 12px; height: 30px;">
+                <span id="wsLockBadge">
+                    {% if is_locked %}
+                        <span class="lock-badge locked">🔒 Locked</span>
+                    {% else %}
+                        <span class="lock-badge unlocked">🔓 Open</span>
+                    {% endif %}
+                </span>
             </div>
         </div>
 
-        <div class="worksheet-body">
+        <div class="worksheet-body" id="worksheetContainer">
             {% if is_locked %}
                 {% if worksheet and worksheet.is_submitted() %}
-                    <!-- Locked but submitted — show read-only -->
                     <div class="worksheet-readonly">
                         <div class="readonly-label">Submitted at {{ worksheet.submitted_at.strftime('%H:%M') if worksheet.submitted_at else '' }}</div>
                         <div class="worksheet-content-view">{{ worksheet.content }}</div>
                     </div>
-                    <div class="worksheet-status submitted">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                        Submitted
+                    <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <span class="worksheet-status submitted">✓ Submitted</span>
+                        <button class="btn btn-ghost btn-xs" id="reqUnlockBtn" onclick="requestWsUnlock()" style="color: var(--warning); border: 1px solid var(--border2);" {% if worksheet and worksheet.unlock_requested %}disabled{% endif %}>
+                            {{ '⏳ Unlock Requested' if worksheet and worksheet.unlock_requested else '📩 Request Edit Unlock' }}
+                        </button>
                     </div>
                 {% else %}
-                    <!-- Locked, not submitted -->
                     <div class="worksheet-locked-msg">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                             <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                         </svg>
-                        <p>Worksheet is locked</p>
-                        <span>Contact your admin to unlock</span>
+                        <p style="margin-top: 6px; font-weight: 600;">Worksheet is locked for this date</p>
+                        <span style="font-size: 12px; color: var(--text3);">Request Admin unlock to submit or update your log</span>
+                        <div style="margin-top: 12px;">
+                            <button class="btn btn-primary btn-sm" id="reqUnlockBtn" onclick="requestWsUnlock()" {% if worksheet and worksheet.unlock_requested %}disabled style="opacity: 0.6;"{% endif %}>
+                                {{ '⏳ Request Sent to Admin' if worksheet and worksheet.unlock_requested else '📩 Request Admin Unlock' }}
+                            </button>
+                        </div>
                     </div>
                 {% endif %}
             {% else %}
-                <!-- Editable -->
                 <div class="save-indicator" id="saveIndicator"></div>
                 <textarea
                     id="worksheetContent"
                     class="worksheet-textarea"
-                    placeholder="Write your work for today...&#10;&#10;Example:&#10;- Completed the login page UI&#10;- Fixed backend API issue&#10;- Reviewed pull requests"
-                    rows="8"
+                    placeholder="Write your work log for the selected date...&#10;&#10;Example:&#10;- Completed tasks&#10;- Fixed bugs"
+                    rows="7"
                 >{{ worksheet.content if worksheet and worksheet.content else '' }}</textarea>
                 <div class="worksheet-footer">
                     <span class="char-count" id="charCount">0 characters</span>
@@ -181,13 +191,14 @@
                             <polyline points="17 21 17 13 7 13 7 21"/>
                             <polyline points="7 3 7 8 15 8"/>
                         </svg>
-                        Save
+                        Save Worksheet
                     </button>
                 </div>
             {% endif %}
         </div>
     </div>
     {% endif %}
+
 
 </div>
 
@@ -275,25 +286,134 @@
         }
     }
 
+    async function changeWorksheetDate() {
+        const picker = document.getElementById('wsDatePicker');
+        if (!picker) return;
+        const selectedDate = picker.value;
+
+        try {
+            const res = await fetch(`/employee/worksheet/fetch?date=${selectedDate}`);
+            const data = await res.json();
+            if (data.success) {
+                const container = document.getElementById('worksheetContainer');
+                const badge = document.getElementById('wsLockBadge');
+                badge.innerHTML = data.is_locked ? '<span class="lock-badge locked">🔒 Locked</span>' : '<span class="lock-badge unlocked">🔓 Open</span>';
+
+                if (data.is_locked) {
+                    if (data.content && data.content.trim()) {
+                        container.innerHTML = `
+                            <div class="worksheet-readonly">
+                                <div class="readonly-label">Submitted Work Log</div>
+                                <div class="worksheet-content-view">${data.content}</div>
+                            </div>
+                            <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                <span class="worksheet-status submitted">✓ Submitted</span>
+                                <button class="btn btn-ghost btn-xs" id="reqUnlockBtn" onclick="requestWsUnlock()" style="color: var(--warning); border: 1px solid var(--border2);" ${data.unlock_requested ? 'disabled' : ''}>
+                                    ${data.unlock_requested ? '⏳ Unlock Requested' : '📩 Request Edit Unlock'}
+                                </button>
+                            </div>`;
+                    } else {
+                        container.innerHTML = `
+                            <div class="worksheet-locked-msg">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                                <p style="margin-top: 6px; font-weight: 600;">Worksheet is locked for this date</p>
+                                <span style="font-size: 12px; color: var(--text3);">Request Admin unlock to submit or update your log</span>
+                                <div style="margin-top: 12px;">
+                                    <button class="btn btn-primary btn-sm" id="reqUnlockBtn" onclick="requestWsUnlock()" ${data.unlock_requested ? 'disabled style="opacity: 0.6;"' : ''}>
+                                        ${data.unlock_requested ? '⏳ Request Sent to Admin' : '📩 Request Admin Unlock'}
+                                    </button>
+                                </div>
+                            </div>`;
+                    }
+                } else {
+                    container.innerHTML = `
+                        <div class="save-indicator" id="saveIndicator"></div>
+                        <textarea
+                            id="worksheetContent"
+                            class="worksheet-textarea"
+                            placeholder="Write your work log for the selected date...&#10;&#10;Example:&#10;- Completed tasks&#10;- Fixed bugs"
+                            rows="7"
+                        >${data.content || ''}</textarea>
+                        <div class="worksheet-footer">
+                            <span class="char-count" id="charCount">${(data.content || '').length} characters</span>
+                            <button class="btn btn-primary" id="saveWorksheetBtn" onclick="saveWorksheet()">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                    <polyline points="17 21 17 13 7 13 7 21"/>
+                                    <polyline points="7 3 7 8 15 8"/>
+                                </svg>
+                                Save Worksheet
+                            </button>
+                        </div>`;
+                    
+                    const newTextarea = document.getElementById('worksheetContent');
+                    if (newTextarea) {
+                        newTextarea.addEventListener('input', () => {
+                            document.getElementById('charCount').textContent = newTextarea.value.length + ' characters';
+                        });
+                    }
+                }
+            }
+        } catch(e) {
+            showToast('Failed to fetch worksheet for date.', 'error');
+        }
+    }
+
+    async function requestWsUnlock() {
+        const picker = document.getElementById('wsDatePicker');
+        const selectedDate = picker ? picker.value : '';
+        const btn = document.getElementById('reqUnlockBtn');
+        if (btn) btn.disabled = true;
+
+        const form = new FormData();
+        form.append('date', selectedDate);
+
+        try {
+            const res = await fetch('/employee/worksheet/request-unlock', { method: 'POST', body: form });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, 'success');
+                if (btn) {
+                    btn.textContent = '⏳ Request Sent to Admin';
+                    btn.disabled = true;
+                    btn.style.opacity = '0.6';
+                }
+            } else {
+                showToast(data.message || 'Failed to request unlock.', 'error');
+                if (btn) btn.disabled = false;
+            }
+        } catch(e) {
+            showToast('Network error. Try again.', 'error');
+            if (btn) btn.disabled = false;
+        }
+    }
+
     async function saveWorksheet() {
         const btn = document.getElementById('saveWorksheetBtn');
         const content = document.getElementById('worksheetContent').value;
+        const picker = document.getElementById('wsDatePicker');
+        const selectedDate = picker ? picker.value : '';
         const indicator = document.getElementById('saveIndicator');
 
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner"></span> Saving...';
-        indicator.textContent = '';
+        if (indicator) indicator.textContent = '';
 
         const form = new FormData();
         form.append('content', content);
+        form.append('date', selectedDate);
 
         try {
             const res = await fetch('/employee/worksheet', { method: 'POST', body: form });
             const data = await res.json();
             if (data.success) {
-                showToast('Worksheet saved!', 'success');
-                indicator.textContent = '✓ Saved';
-                indicator.className = 'save-indicator saved';
+                showToast(data.message || 'Worksheet saved!', 'success');
+                if (indicator) {
+                    indicator.textContent = '✓ Saved';
+                    indicator.className = 'save-indicator saved';
+                }
             } else {
                 showToast(data.message, 'error');
             }
@@ -301,8 +421,9 @@
             showToast('Failed to save. Try again.', 'error');
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
+            btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Worksheet';
         }
     }
 </script>
+
 {% endblock %}

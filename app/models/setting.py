@@ -68,7 +68,22 @@ DEFAULT_SETTINGS = [
     {
         "key": "weekend_policy",
         "value": "sunday_only",
-        "description": "Week off policy: 'sunday_only' or 'sat_sun'",
+        "description": "Week off policy: 'sunday_only', 'sat_half_sun_off', or 'sat_sun'",
+    },
+    {
+        "key": "sat_checkin_time",
+        "value": "10:00",
+        "description": "Saturday on-time check-in deadline (HH:MM)",
+    },
+    {
+        "key": "sat_last_entry_time",
+        "value": "10:30",
+        "description": "Saturday last allowed self check-in cut-off (HH:MM)",
+    },
+    {
+        "key": "sat_checkout_time",
+        "value": "13:00",
+        "description": "Saturday worksheet lock / work end time (HH:MM)",
     },
     {
         "key": "maintenance_mode",
@@ -76,5 +91,6 @@ DEFAULT_SETTINGS = [
         "description": "System maintenance mode — blocks employee access when true",
     },
 ]
+
 
 

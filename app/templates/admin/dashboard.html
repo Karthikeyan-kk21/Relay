@@ -94,8 +94,41 @@
     </a>
 </div>
 
+{% if pending_ws_requests %}
+<div class="card" style="background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px; color: #fde047; font-weight: 700; font-size: 1rem;">
+            <span style="font-size: 1.3rem;">📩</span>
+            <span>Pending Worksheet Unlock Requests ({{ pending_ws_requests|length }})</span>
+        </div>
+        <span style="font-size: 12px; color: var(--text3);">Click Approve to grant 1-time edit access to the employee</span>
+    </div>
+    
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+        {% for req in pending_ws_requests %}
+        <div id="req-card-{{ req.id }}" style="display: flex; align-items: center; justify-content: space-between; background: var(--bg2); border: 1px solid var(--border2); padding: 10px 14px; border-radius: 8px; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <span style="font-weight: 700; color: var(--text);">{{ req.user.full_name }}</span>
+                <span class="font-mono text-muted" style="font-size: 12px; margin-left: 6px;">({{ req.user.employee_id }})</span>
+                <span style="margin-left: 12px; font-size: 13px; color: #38bdf8; font-weight: 600;">Date: {{ req.date.strftime('%d %b %Y') }}</span>
+                {% if req.unlock_requested_at %}
+                    <span style="font-size: 11px; color: var(--text3); margin-left: 8px;">Requested: {{ req.unlock_requested_at.strftime('%H:%M IST') }}</span>
+                {% endif %}
+            </div>
+            <div>
+                <button class="btn btn-primary btn-xs" onclick="approveWsUnlock({{ req.id }})">
+                    🔓 Approve Unlock
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 
 <!-- Employee Table -->
+
 <div class="card">
     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
         <div>
@@ -328,7 +361,24 @@
 
 {% block scripts %}
 <script>
+    async function approveWsUnlock(wsId) {
+        try {
+            const res = await fetch(`/admin/worksheet/approve-unlock/${wsId}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, 'success');
+                const card = document.getElementById(`req-card-${wsId}`);
+                if (card) card.remove();
+            } else {
+                showToast(data.message || 'Failed to approve unlock.', 'error');
+            }
+        } catch(e) {
+            showToast('Network error. Try again.', 'error');
+        }
+    }
+
     function toggleDropdown(userId) {
+
         const menu = document.getElementById('dmenu-' + userId);
         const allMenus = document.querySelectorAll('.dropdown-menu');
         allMenus.forEach(m => { if (m !== menu) m.classList.remove('open'); });

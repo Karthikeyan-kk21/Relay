@@ -59,7 +59,9 @@ def dashboard():
         except ValueError:
             pass
 
-    employees = User.query.filter_by(role="user", active=True).all()
+    employees = User.query.filter_by(role="user", active=True).order_by(User.employee_id.asc()).all()
+
+
 
     # Build enriched employee data for the selected date
     emp_data = []
@@ -98,6 +100,8 @@ def dashboard():
     sec1_items = [e for e in emp_data if e["user"].section == "Section 1"]
     sec2_items = [e for e in emp_data if e["user"].section != "Section 1"]
 
+    pending_ws_requests = Worksheet.query.filter_by(unlock_requested=True).order_by(Worksheet.unlock_requested_at.desc()).all()
+
     return render_template(
         "admin/dashboard.html",
         emp_data=emp_data,
@@ -109,6 +113,7 @@ def dashboard():
         next_date_str=next_date.strftime("%Y-%m-%d"),
         selected_date_str=selected_date.strftime("%Y-%m-%d"),
         is_today=(selected_date == get_ist_today()),
+        pending_ws_requests=pending_ws_requests
     )
 
 
@@ -165,21 +170,56 @@ def unlock_worksheet(user_id):
     return jsonify({"success": True, "message": "Worksheet unlocked for employee."})
 
 
-# ─── Lock Worksheet ───────────────────────────────────────────────────────────
-
-@admin_bp.route("/worksheet/lock/<int:user_id>", methods=["POST"])
+@admin_bp.route("/worksheet/approve-unlock/<int:ws_id>", methods=["POST"])
 @login_required
 @admin_required
-def lock_worksheet(user_id):
-    today = get_ist_today()
-    ws = Worksheet.query.filter_by(user_id=user_id, date=today).first()
+def approve_worksheet_unlock(ws_id):
+    ws = Worksheet.query.get_or_404(ws_id)
+    ws.admin_unlocked = True
+    ws.is_locked = False
+    ws.unlock_requested = False
+    db.session.commit()
+    return jsonify({
+        "success": True,
+        "message": f"Worksheet unlocked for {ws.user.full_name} on {ws.date.strftime('%d %b %Y')}."
+    })
 
-    if ws:
-        ws.is_locked = True
-        ws.admin_unlocked = False
-        db.session.commit()
 
-    return jsonify({"success": True, "message": "Worksheet locked."})
+@admin_bp.route("/worksheet/unlock-date", methods=["POST"])
+@login_required
+@admin_required
+def unlock_worksheet_date():
+    user_id = request.form.get("user_id")
+    date_str = request.form.get("date")
+    if not user_id or not date_str:
+        return jsonify({"success": False, "message": "Missing required parameters."}), 400
+    try:
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"success": False, "message": "Invalid date format."}), 400
+
+    ws = Worksheet.query.filter_by(user_id=user_id, date=target_date).first()
+    if not ws:
+        ws = Worksheet(
+            user_id=user_id,
+            date=target_date,
+            content="",
+            is_locked=False,
+            admin_unlocked=True,
+            unlock_requested=False,
+        )
+        db.session.add(ws)
+    else:
+        ws.admin_unlocked = True
+        ws.is_locked = False
+        ws.unlock_requested = False
+
+    db.session.commit()
+    return jsonify({
+        "success": True,
+        "message": f"Worksheet unlocked for date {target_date.strftime('%d %b %Y')}."
+    })
+
 
 
 # ─── User Management ──────────────────────────────────────────────────────────
@@ -188,7 +228,8 @@ def lock_worksheet(user_id):
 @login_required
 @admin_required
 def users():
-    all_users = User.query.filter_by(role="user").order_by(User.created_at.desc()).all()
+    all_users = User.query.filter_by(role="user").order_by(User.employee_id.asc()).all()
+
     sec1_users = [u for u in all_users if u.section == "Section 1"]
     sec2_users = [u for u in all_users if u.section != "Section 1"]
     return render_template("admin/users.html", users=all_users, sec1_users=sec1_users, sec2_users=sec2_users)
@@ -359,12 +400,13 @@ def settings():
     from app.models.setting import DEFAULT_SETTINGS
 
     if request.method == "POST":
-        keys = ["office_ip", "checkin_time", "late_threshold", "worksheet_lock_time", "last_entry_time", "disable_timing_lock", "weekend_policy", "maintenance_mode"]
+        keys = ["office_ip", "checkin_time", "late_threshold", "worksheet_lock_time", "last_entry_time", "disable_timing_lock", "weekend_policy", "sat_checkin_time", "sat_last_entry_time", "sat_checkout_time", "maintenance_mode"]
         for key in keys:
             val = request.form.get(key, "").strip()
             Setting.set_value(key, val)
         flash("Settings saved successfully.", "success")
         return redirect(url_for("admin.settings"))
+
 
     # Load current settings
     current_settings = {}
@@ -644,7 +686,8 @@ def sheet():
         })
 
     # Fetch all employees
-    employees = User.query.filter_by(role="user", active=True).order_by(User.full_name).all()
+    employees = User.query.filter_by(role="user", active=True).order_by(User.employee_id.asc()).all()
+
 
     # Query all attendance records and holidays for this month
     start_date = date(year, month, 1)

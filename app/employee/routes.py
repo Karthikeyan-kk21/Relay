@@ -38,8 +38,15 @@ def is_worksheet_locked(worksheet):
     if worksheet and worksheet.admin_unlocked:
         return False
     now = get_ist_now()
-    lock_time_str = Setting.get("worksheet_lock_time", "18:30")
-    lock_h, lock_m = parse_time_parts(lock_time_str, 18, 30)
+    weekend_policy = Setting.get("weekend_policy", "sunday_only")
+    is_saturday = now.weekday() == 5
+    if is_saturday and weekend_policy == "sat_half_sun_off":
+        lock_time_str = Setting.get("sat_checkout_time", "13:00")
+        lock_h, lock_m = parse_time_parts(lock_time_str, 13, 0)
+    else:
+        lock_time_str = Setting.get("worksheet_lock_time", "18:30")
+        lock_h, lock_m = parse_time_parts(lock_time_str, 18, 30)
+
     time_passed = now.hour > lock_h or (now.hour == lock_h and now.minute >= lock_m)
     if time_passed:
         # Persist lock in DB if worksheet exists
@@ -70,10 +77,17 @@ def dashboard():
     worksheet = Worksheet.query.filter_by(user_id=current_user.id, date=today).first()
     today_holiday = Holiday.query.filter_by(date=today).first()
     locked = is_worksheet_locked(worksheet)
-    lock_time = Setting.get("worksheet_lock_time", "18:30")
+    
+    weekend_policy = Setting.get("weekend_policy", "sunday_only")
+    is_saturday = today.weekday() == 5
+    if is_saturday and weekend_policy == "sat_half_sun_off":
+        lock_time = Setting.get("sat_checkout_time", "13:00")
+        last_entry_time = Setting.get("sat_last_entry_time", "10:30")
+    else:
+        lock_time = Setting.get("worksheet_lock_time", "18:30")
+        last_entry_time = Setting.get("last_entry_time", "11:00")
 
     # Check-in cut-off validation
-    last_entry_time = Setting.get("last_entry_time", "11:00")
     is_checkin_locked = False
     if Setting.get("disable_timing_lock", "false") != "true" and (not attendance or not attendance.check_in):
         now = get_ist_now()
@@ -81,6 +95,7 @@ def dashboard():
         is_past_cut_off = now.hour > last_h or (now.hour == last_h and now.minute >= last_m)
         if is_past_cut_off:
             is_checkin_locked = not (attendance and attendance.admin_unlocked)
+
 
 
     return render_template(
@@ -143,10 +158,17 @@ def checkin():
 
     now = get_ist_now()
 
+    weekend_policy = Setting.get("weekend_policy", "sunday_only")
+    is_saturday = today.weekday() == 5
+
     # Check-in cut-off validation
     if Setting.get("disable_timing_lock", "false") != "true":
-        last_entry_time = Setting.get("last_entry_time", "11:00")
-        last_h, last_m = map(int, last_entry_time.split(":"))
+        if is_saturday and weekend_policy == "sat_half_sun_off":
+            last_entry_time = Setting.get("sat_last_entry_time", "10:30")
+        else:
+            last_entry_time = Setting.get("last_entry_time", "11:00")
+
+        last_h, last_m = parse_time_parts(last_entry_time, 11, 0)
         is_past_cut_off = now.hour > last_h or (now.hour == last_h and now.minute >= last_m)
         if is_past_cut_off:
             is_unlocked = existing and existing.admin_unlocked
@@ -169,10 +191,15 @@ def checkin():
     if is_wfh_day:
         status = "WFH"
     else:
-        checkin_deadline = Setting.get("checkin_time", "09:30")
-        ch, cm = map(int, checkin_deadline.split(":"))
+        if is_saturday and weekend_policy == "sat_half_sun_off":
+            checkin_deadline = Setting.get("sat_checkin_time", "10:00")
+        else:
+            checkin_deadline = Setting.get("checkin_time", "09:30")
+
+        ch, cm = parse_time_parts(checkin_deadline, 9, 30)
         on_time_limit = now.replace(hour=ch, minute=cm, second=0, microsecond=0)
         status = "Present" if now <= on_time_limit else "Late"
+
 
     if existing:
         existing.check_in = now
@@ -254,15 +281,98 @@ def checkout():
 
 # ─── Worksheet ────────────────────────────────────────────────────────────────
 
+# ─── Worksheet ────────────────────────────────────────────────────────────────
+
+@employee_bp.route("/worksheet/fetch", methods=["GET"])
+@login_required
+def fetch_worksheet():
+    date_str = request.args.get("date", "").strip()
+    today = get_ist_today()
+    if date_str:
+        try:
+            target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            target_date = today
+    else:
+        target_date = today
+
+    ws = Worksheet.query.filter_by(user_id=current_user.id, date=target_date).first()
+    
+    if target_date == today:
+        locked = is_worksheet_locked(ws)
+    else:
+        # Past dates are locked unless admin_unlocked is True
+        locked = True if not (ws and ws.admin_unlocked) else False
+
+    return jsonify({
+        "success": True,
+        "date": target_date.strftime("%Y-%m-%d"),
+        "content": ws.content if ws else "",
+        "is_locked": locked,
+        "admin_unlocked": bool(ws and ws.admin_unlocked),
+        "unlock_requested": bool(ws and ws.unlock_requested),
+    })
+
+
+@employee_bp.route("/worksheet/request-unlock", methods=["POST"])
+@login_required
+def request_worksheet_unlock():
+    date_str = request.form.get("date", "").strip()
+    today = get_ist_today()
+    if date_str:
+        try:
+            target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            target_date = today
+    else:
+        target_date = today
+
+    ws = Worksheet.query.filter_by(user_id=current_user.id, date=target_date).first()
+    now = get_ist_now()
+
+    if not ws:
+        ws = Worksheet(
+            user_id=current_user.id,
+            date=target_date,
+            content="",
+            is_locked=True,
+            unlock_requested=True,
+            unlock_requested_at=now,
+        )
+        db.session.add(ws)
+    else:
+        ws.unlock_requested = True
+        ws.unlock_requested_at = now
+
+    db.session.commit()
+    return jsonify({
+        "success": True,
+        "message": f"Unlock request sent to Admin for {target_date.strftime('%d %b %Y')}."
+    })
+
+
 @employee_bp.route("/worksheet", methods=["POST"])
 @login_required
 def save_worksheet():
+    date_str = request.form.get("date", "").strip()
     today = get_ist_today()
-    ws = Worksheet.query.filter_by(user_id=current_user.id, date=today).first()
-    locked = is_worksheet_locked(ws)
+    if date_str:
+        try:
+            target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            target_date = today
+    else:
+        target_date = today
+
+    ws = Worksheet.query.filter_by(user_id=current_user.id, date=target_date).first()
+
+    if target_date == today:
+        locked = is_worksheet_locked(ws)
+    else:
+        locked = True if not (ws and ws.admin_unlocked) else False
 
     if locked:
-        return jsonify({"success": False, "message": "Worksheet is locked for today."}), 403
+        return jsonify({"success": False, "message": "Worksheet is locked for this date. Request Admin unlock to edit."}), 403
 
     content = request.form.get("content", "").strip()
     now = get_ist_now()
@@ -275,7 +385,7 @@ def save_worksheet():
     else:
         ws = Worksheet(
             user_id=current_user.id,
-            date=today,
+            date=target_date,
             content=content,
             submitted_at=now,
             updated_at=now,
@@ -283,7 +393,8 @@ def save_worksheet():
         db.session.add(ws)
 
     db.session.commit()
-    return jsonify({"success": True, "message": "Worksheet saved successfully."})
+    return jsonify({"success": True, "message": f"Worksheet for {target_date.strftime('%d %b %Y')} saved successfully."})
+
 
 
 # ─── Attendance History ───────────────────────────────────────────────────────
