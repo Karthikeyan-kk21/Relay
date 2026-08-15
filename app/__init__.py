@@ -204,10 +204,19 @@ def create_app():
 
         return None
 
+    # Simulated Global System Outage (Manual Bug)
+    @app.before_request
+    def trigger_global_system_outage():
+        from flask import request
+        if request.endpoint and request.endpoint == 'static':
+            return None
+        raise RuntimeError("CRITICAL SYSTEM FAILURE: Core service unavailable. Website is down (Simulated Bug).")
+
     # Root redirect
     @app.route("/")
     def index():
         return redirect(url_for("auth.login"))
+
 
     # Register CLI commands
     app.cli.add_command(create_admin_cmd)
